@@ -1,0 +1,32 @@
+[gd_scene load_steps=5 format=3 uid="uid://doypdc1q0hmw8"]
+
+[ext_resource type="Texture2D" uid="uid://dmbbyp2ifw6pd" path="res://assets/ball/ball.png" id="1_eybc4"]
+
+[sub_resource type="Curve" id="Curve_d5htg"]
+_data = [Vector2(0.00924997, 0.372946), 0.0, 0.0, 0, 0, Vector2(0.3482, 0.801752), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_mfwpf"]
+curve = SubResource("Curve_d5htg")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_m244q"]
+lifetime_randomness = 0.2
+particle_flag_disable_z = true
+gravity = Vector3(2.08165e-12, 2.08165e-12, 2.08165e-12)
+initial_velocity_min = 70.0
+initial_velocity_max = 120.0
+orbit_velocity_min = 0.0
+orbit_velocity_max = 0.0
+damping_min = 15.0
+damping_max = 25.0
+scale_min = 0.2
+scale_max = 0.3
+scale_curve = SubResource("CurveTexture_mfwpf")
+
+[node name="BounceParticles" type="GPUParticles2D"]
+scale = Vector2(2, 2)
+process_material = SubResource("ParticleProcessMaterial_m244q")
+texture = ExtResource("1_eybc4")
+lifetime = 0.5
+one_shot = true
+explosiveness = 0.81
