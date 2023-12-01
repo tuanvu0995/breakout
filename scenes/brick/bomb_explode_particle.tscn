@@ -1,0 +1,51 @@
+[gd_scene load_steps=8 format=3 uid="uid://dfj7drktm1oi8"]
+
+[ext_resource type="Texture2D" uid="uid://dmbbyp2ifw6pd" path="res://assets/ball/ball.png" id="1_ihnve"]
+[ext_resource type="Script" path="res://scenes/brick/scripts/bomb_explode_particle.gd" id="2_gxooq"]
+
+[sub_resource type="Gradient" id="Gradient_ku33a"]
+offsets = PackedFloat32Array(0, 0.465625)
+colors = PackedColorArray(0.941321, 0.000433921, 0.000239296, 1, 0.0475577, 0.0475576, 0.0475577, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_wjvqv"]
+gradient = SubResource("Gradient_ku33a")
+
+[sub_resource type="Curve" id="Curve_eqxde"]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.14327, 1), 0.0, 0.0, 0, 0, Vector2(0.782742, 0.673563), -1.54394, -1.54394, 0, 0, Vector2(0.956699, 0), 0.0, 0.0, 0, 0]
+point_count = 4
+
+[sub_resource type="CurveTexture" id="CurveTexture_qham0"]
+curve = SubResource("Curve_eqxde")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_l418r"]
+emission_shape = 2
+emission_sphere_radius = 290.0
+particle_flag_disable_z = true
+direction = Vector3(2.08165e-12, -1, 2.08165e-12)
+spread = 180.0
+gravity = Vector3(2.08165e-12, 60, 2.08165e-12)
+initial_velocity_min = 70.0
+initial_velocity_max = 100.0
+angular_velocity_min = -158.59
+angular_velocity_max = 380.62
+orbit_velocity_min = 0.0
+orbit_velocity_max = 0.0
+scale_min = 0.2
+scale_max = 0.35
+scale_curve = SubResource("CurveTexture_qham0")
+color_ramp = SubResource("GradientTexture1D_wjvqv")
+
+[node name="BombExplodeParticle" type="GPUParticles2D"]
+emitting = false
+amount = 140
+process_material = SubResource("ParticleProcessMaterial_l418r")
+texture = ExtResource("1_ihnve")
+lifetime = 0.5
+one_shot = true
+explosiveness = 0.9
+randomness = 0.6
+script = ExtResource("2_gxooq")
+
+[node name="Timer" type="Timer" parent="."]
+
+[connection signal="timeout" from="Timer" to="." method="_on_timer_timeout"]

@@ -1,22 +1,30 @@
-[gd_scene load_steps=6 format=3 uid="uid://h51nvgfql84s"]
+[gd_scene load_steps=8 format=3 uid="uid://h51nvgfql84s"]
 
 [ext_resource type="Script" path="res://scenes/brick/scripts/brick.gd" id="1_hqfdi"]
-[ext_resource type="Texture2D" uid="uid://bfrv1kx1fbglo" path="res://assets/block/BlockSmallFull.png" id="2_hl3mn"]
+[ext_resource type="Texture2D" uid="uid://25d686i8luqt" path="res://assets/block/BlockLongFull.png" id="2_7r57j"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_j0b6y"]
 size = Vector2(60, 60)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_lswqa"]
-size = Vector2(192, 60)
+size = Vector2(123, 60)
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_x1aju"]
 radius = 100.0
+
+[sub_resource type="Animation" id="Animation_ow3or"]
+resource_name = "appear"
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_plq4n"]
+_data = {
+"appear": SubResource("Animation_ow3or")
+}
 
 [node name="Brick" type="StaticBody2D" groups=["Bricks"]]
 script = ExtResource("1_hqfdi")
 
 [node name="Size" type="Sprite2D" parent="."]
-texture = ExtResource("2_hl3mn")
+texture = ExtResource("2_7r57j")
 
 [node name="Type" type="Sprite2D" parent="."]
 
@@ -25,10 +33,15 @@ visible = false
 shape = SubResource("RectangleShape2D_j0b6y")
 
 [node name="CollisionShapeLong" type="CollisionShape2D" parent="."]
-position = Vector2(-1, 0)
+position = Vector2(-0.5, 0)
 shape = SubResource("RectangleShape2D_lswqa")
 
 [node name="ExplosionArea" type="Area2D" parent="."]
 
 [node name="CollisionShape" type="CollisionShape2D" parent="ExplosionArea"]
 shape = SubResource("CircleShape2D_x1aju")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_plq4n")
+}

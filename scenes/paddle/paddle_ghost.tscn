@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://coxu2pwuoluv7"]
+
+[ext_resource type="Script" path="res://scenes/paddle/scripts/paddle_ghost.gd" id="1_kwidg"]
+
+[node name="PaddleGhost" type="Sprite2D"]
+script = ExtResource("1_kwidg")

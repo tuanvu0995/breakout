@@ -1,17 +1,154 @@
-[gd_scene load_steps=4 format=3 uid="uid://cwpy382omhn44"]
+[gd_scene load_steps=16 format=3 uid="uid://cwpy382omhn44"]
 
 [ext_resource type="Script" path="res://scenes/paddle/scripts/paddle.gd" id="1_7gn6k"]
 [ext_resource type="Texture2D" uid="uid://oj2ix6oo4rdh" path="res://assets/paddle/Paddle.png" id="1_ifyaj"]
+[ext_resource type="Shader" path="res://shareds/shaders/deform.gdshader" id="2_tib45"]
+[ext_resource type="PackedScene" uid="uid://fxbsmy6n17ok" path="res://scenes/paddle/paddle_ghost_spawner.tscn" id="4_4mx64"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_eeofp"]
+shader = ExtResource("2_tib45")
+shader_parameter/uv_mode = false
+shader_parameter/x_factor = 2.0
+shader_parameter/bulge = 4.75e-08
+
+[sub_resource type="Gradient" id="Gradient_xk56x"]
+offsets = PackedFloat32Array(0.175, 0.48125, 0.784375, 1)
+colors = PackedColorArray(0, 0, 0.87451, 1, 0.894118, 0.184314, 0.305882, 1, 0.882353, 0.8, 0.12549, 1, 1, 1, 1, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_bea5i"]
+gradient = SubResource("Gradient_xk56x")
+
+[sub_resource type="Curve" id="Curve_rg4sr"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.0173929), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_45yqg"]
+curve = SubResource("Curve_rg4sr")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_kfrmb"]
+particle_flag_disable_z = true
+direction = Vector3(2.08165e-12, 1, 2.08165e-12)
+spread = 4.0
+gravity = Vector3(0, 98, 0)
+initial_velocity_min = 50.0
+initial_velocity_max = 50.0
+orbit_velocity_min = 0.0
+orbit_velocity_max = 0.0
+angle_max = 720.0
+scale_min = 25.0
+scale_max = 27.0
+scale_curve = SubResource("CurveTexture_45yqg")
+color_ramp = SubResource("GradientTexture1D_bea5i")
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_8eex6"]
 size = Vector2(150, 42)
 
+[sub_resource type="Animation" id="Animation_an385"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(0, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite:material:shader_parameter/bulge")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [4.75e-08]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Sprite:scale")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_87ahc"]
+resource_name = "bounce"
+length = 0.4
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite:material:shader_parameter/bulge")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.4),
+"transitions": PackedFloat32Array(-2, -2, -2, -2),
+"update": 0,
+"values": [4.75e-08, 0.2, -0.2, 4.75e-08]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.4),
+"transitions": PackedFloat32Array(-2, -2, -2, -2),
+"update": 0,
+"values": [Vector2(1, 1), Vector2(1, 0.8), Vector2(1, 1.2), Vector2(1, 1)]
+}
+
+[sub_resource type="Animation" id="Animation_ai7gv"]
+resource_name = "bump"
+length = 0.25
+step = 0.05
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.0001, 0.05, 0.15, 0.25),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1),
+"update": 0,
+"values": [Vector2(2.08165e-12, -10), Vector2(2.08165e-12, 2.08165e-12), Vector2(2.08165e-12, -10), Vector2(2.08165e-12, 10), Vector2(2.08165e-12, 2.08165e-12)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_t7a87"]
+_data = {
+"RESET": SubResource("Animation_an385"),
+"bounce": SubResource("Animation_87ahc"),
+"bump": SubResource("Animation_ai7gv")
+}
+
 [node name="Paddle" type="CharacterBody2D" groups=["Paddle"]]
+scale = Vector2(0.7, 0.7)
 script = ExtResource("1_7gn6k")
+speed = 800.0
 dash_speed = 2500.0
 
 [node name="Sprite" type="Sprite2D" parent="."]
+material = SubResource("ShaderMaterial_eeofp")
 texture = ExtResource("1_ifyaj")
+
+[node name="ThrustParticle" type="GPUParticles2D" parent="Sprite"]
+show_behind_parent = true
+amount = 51
+process_material = SubResource("ParticleProcessMaterial_kfrmb")
+local_coords = true
 
 [node name="CollisionShape" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_8eex6")
@@ -23,3 +160,14 @@ one_shot = true
 
 [node name="LaunchPoint" type="Marker2D" parent="."]
 position = Vector2(2.08165e-12, -37)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+libraries = {
+"": SubResource("AnimationLibrary_t7a87")
+}
+
+[node name="PaddleGhostSpawner" parent="." node_paths=PackedStringArray("sprite") instance=ExtResource("4_4mx64")]
+sprite = NodePath("../Sprite")
+color = Color(0.831373, 0.831373, 0.831373, 0.054902)
+
+[connection signal="timeout" from="DashTimer" to="." method="_on_DashTimer_timeout"]

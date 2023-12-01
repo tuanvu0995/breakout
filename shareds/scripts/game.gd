@@ -24,6 +24,9 @@ var started: bool = false
 func _ready():
 	randomize()
 	
+	Globals.camera = $Camera
+	Globals.camera.objects = [ball]
+	
 	ball.attached_to = paddle.launch_point
 	paddle.ball_attached = ball
 	paddle.ball = ball
@@ -41,11 +44,13 @@ func _process(delta) -> void:
 	time += delta
 	
 func layout_bricks() -> void:
+	var bricks_tween: Tween = create_tween()
 	var max_bricks: int = spawn_pos_container.get_child_count()
 	for i in range(max_bricks):
 		# 90% chance of having a block
 		if randf() < 0.1: continue
-		add_brick(brick_container, spawn_pos_container.get_child(i).global_position)
+		bricks_tween.tween_callback(add_brick.bind(brick_container, spawn_pos_container.get_child(i).global_position))
+		bricks_tween.tween_interval(0.1)
 		
 func add_brick(parent: Node, pos: Vector2) -> void:
 	var instance = brick_scene.instantiate()
@@ -66,6 +71,7 @@ func remove_all_bricks() -> void:
 func reset_and_attach_ball() -> void:
 	ball.velocity = Vector2.ZERO
 	ball.attached_to = paddle.launch_point
+	ball.appear()
 	paddle.ball_attached = ball
 	paddle.game_over = false
 	paddle.stage_clear = false
@@ -120,6 +126,16 @@ func on_brick_destroyed(which) -> void:
 		reset_and_attach_ball()
 		#show_stage_clear()
 
+func _on_ball_hit_block(block) -> void:
+	#add_energy(block_energy)
+	if block._destroyed: return
+	combo += 1
+	show_combo(combo)
+	#combo_timer.start()
+	score += score_brick_touched * combo
+	Globals.stats["score"] = score
+	#score_ui.set_score(score)
+
 func on_energy_brick_destroyed() -> void:
 	add_energy(energy_block_energy)
 
@@ -129,6 +145,8 @@ func _on_DeathArea_body_entered(body: Node) -> void:
 	health = int(clamp(health, 0, 3))
 	
 	#health_bar.set_health(health)
+	
+	body.die()
 	
 	if health == 0:
 		paddle.game_over = true

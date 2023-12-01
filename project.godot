@@ -24,10 +24,9 @@ Globals="*res://autoload/globals.gd"
 window/size/viewport_width=648
 window/size/viewport_height=1152
 window/size/resizable=false
-window/size/window_width_override=972
-window/size/window_height_override=1728
-window/stretch/mode="canvas_items"
-window/stretch/aspect="keep_height"
+window/size/window_width_override=648
+window/size/window_height_override=1152
+window/stretch/mode="viewport"
 window/handheld/orientation=1
 
 [editor_plugins]

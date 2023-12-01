@@ -5,6 +5,9 @@ class_name Brick
 signal energy_brick_destroyed()
 signal destroyed(which)
 
+@export var brick_explosion: PackedScene = preload("res://scenes/brick/brick_explode_particle.tscn")
+@export var bomb_explosion: PackedScene = preload("res://scenes/brick/bomb_explode_particle.tscn")
+
 @export var long_full: CompressedTexture2D = preload("res://assets/block/BlockLongFull.png")
 @export var long_border: CompressedTexture2D = preload("res://assets/block/BlockLongBorder.png")
 @export var small_full: CompressedTexture2D = preload("res://assets/block/BlockSmallFull.png")
@@ -44,8 +47,10 @@ var health_dict = {
 @onready var explosion_area: Area2D = $ExplosionArea
 @onready var size_sprite: Sprite2D = $Size
 @onready var type_sprite: Sprite2D = $Type
+@onready var anim: AnimationPlayer = $AnimationPlayer 
 
-var _destroyed: bool = false
+var isDestroyed: bool = false
+var bounce_tween: Tween
 
 func _ready() -> void:
 	choose_type_random()
@@ -108,12 +113,29 @@ func update_type_visuals() -> void:
 			type_sprite.texture = bomb
 		TYPE.ENERGY:
 			type_sprite.texture = energy
+		
+func bounce() -> void:
+	if bounce_tween and bounce_tween.is_running():
+		bounce_tween.kill()
+	bounce_tween = create_tween()
+	bounce_tween.tween_property(size_sprite, "scale", Vector2(1.15, 1.15), 0.15) \
+		.set_ease(Tween.EASE_OUT) \
+		.set_trans(Tween.TRANS_ELASTIC)
+	bounce_tween.parallel().tween_property(size_sprite, "rotation_degrees", randf_range(-10.0, 10.0), 0.15) \
+		.set_ease(Tween.EASE_OUT) \
+		.set_trans(Tween.TRANS_ELASTIC )
+	bounce_tween.tween_property(size_sprite, "scale", Vector2.ONE, 0.2) \
+		.set_ease(Tween.EASE_IN) \
+		.set_trans(Tween.TRANS_CUBIC)
+	bounce_tween.parallel().tween_property(size_sprite, "rotation_degrees", 0.0, 0.2) \
+		.set_ease(Tween.EASE_IN) \
+		.set_trans(Tween.TRANS_CUBIC )
 
 func damage(value: int) -> void:
 	health -= value
 	
 	if health <= 0:
-		_destroyed = true
+		isDestroyed = true
 		match type:
 			TYPE.EXPLOSIVE:
 				explode()
@@ -121,7 +143,18 @@ func damage(value: int) -> void:
 				give_energy()
 		destroy()
 	
+	bounce()
 	update_type_health()
+	
+func spawn_brick_explosion() -> void:
+	var instance = brick_explosion.instantiate()
+	get_tree().get_current_scene().add_child(instance)
+	instance.global_position = global_position
+	
+func spawn_bomb_explosion() -> void:
+	var instance = bomb_explosion.instantiate()
+	get_tree().get_current_scene().add_child(instance)
+	instance.global_position = global_position
 
 func update_type_health() -> void:
 	match health:
@@ -137,14 +170,19 @@ func give_energy() -> void:
 	emit_signal("energy_brick_destroyed")
 
 func explode() -> void:
+	spawn_bomb_explosion()
+	
 	var bodies = explosion_area.get_overlapping_bodies()
 	for body in bodies:
-		if body._destroyed: continue
+		if body.is_in_group("Ball"): return
+		if body.isDestroyed: continue
 		# Damage with a high enough value to make sure
 		# they're destroyed but also trigger any eventual
 		# explosive bricks
 		body.damage(10)
 
 func destroy() -> void:
+	spawn_brick_explosion()
+	
 	emit_signal("destroyed", self)
 	queue_free()
