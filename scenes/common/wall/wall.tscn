@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://ccxhkvwgo06ib"]
+
+[ext_resource type="Script" path="res://scenes/common/wall/scripts/wall.gd" id="1_ig3xg"]
+
+[node name="Wall" type="StaticBody2D"]
+script = ExtResource("1_ig3xg")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+
+[node name="CollisionPolygon2D2" type="CollisionPolygon2D" parent="."]
+polygon = PackedVector2Array(3, 3, 650, -1, 651, 1147, 727, 1149, 727, -79, -66, -77, -72, 1156, -1, 1155)
+
+[node name="Polygon2D" type="Polygon2D" parent="."]
+color = Color(0.4, 0.317647, 0.447059, 1)
+polygon = PackedVector2Array(-4, 1152, -820, 1157, -790, -592, 1377, -605, 1381, 1134, 655, 1148, 655, -6, -3, -1)

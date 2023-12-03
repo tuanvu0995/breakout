@@ -1,0 +1,28 @@
+[gd_scene load_steps=7 format=3 uid="uid://difxpsgrsl2cx"]
+
+[ext_resource type="Script" path="res://scenes/maker/scripts/game_maker.gd" id="1_w440u"]
+[ext_resource type="PackedScene" uid="uid://ccxhkvwgo06ib" path="res://scenes/common/wall/wall.tscn" id="2_v8kvu"]
+[ext_resource type="Script" path="res://scenes/game/scripts/CameraOrbit.gd" id="2_xvfue"]
+[ext_resource type="PackedScene" uid="uid://da7oxj4u6cj7a" path="res://scenes/common/dead_area/death_area.tscn" id="3_ygv8d"]
+[ext_resource type="PackedScene" uid="uid://cwpy382omhn44" path="res://scenes/paddle/paddle.tscn" id="4_ffvi0"]
+[ext_resource type="PackedScene" uid="uid://wk0ub1yi1gdh" path="res://scenes/ball/ball.tscn" id="5_4gdu5"]
+
+[node name="GameMaker" type="Node2D"]
+script = ExtResource("1_w440u")
+
+[node name="Camera" type="Camera2D" parent="."]
+position = Vector2(325, 576)
+script = ExtResource("2_xvfue")
+dynamic_enabled = true
+dynamic_factor = 0.2
+
+[node name="Wall" parent="." instance=ExtResource("2_v8kvu")]
+
+[node name="DeathArea" parent="." instance=ExtResource("3_ygv8d")]
+
+[node name="Paddle" parent="." instance=ExtResource("4_ffvi0")]
+position = Vector2(315, 1059)
+
+[node name="Ball" parent="." instance=ExtResource("5_4gdu5")]
+
+[connection signal="body_entered" from="DeathArea" to="." method="_on_DeathArea_body_entered"]

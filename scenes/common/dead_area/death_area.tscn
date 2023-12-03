@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3 uid="uid://da7oxj4u6cj7a"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_60cwd"]
+size = Vector2(3000, 400)
+
+[node name="DeathArea" type="Area2D"]
+position = Vector2(2.08165e-12, 1130)
+
+[node name="CollisionShape" type="CollisionShape2D" parent="."]
+position = Vector2(310, 197)
+shape = SubResource("RectangleShape2D_60cwd")
+
+[node name="Polygon" type="Polygon2D" parent="."]
+position = Vector2(-361.803, 26.3654)
+scale = Vector2(2.16007, 3.58571)
+color = Color(0.866667, 0.356863, 0.364706, 1)
+polygon = PackedVector2Array(-381.097, -4.1846, 1002.19, -5.9585, 1000.09, 100.78, -378.572, 102.249)

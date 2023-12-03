@@ -1,0 +1,43 @@
+[gd_scene load_steps=5 format=3 uid="uid://bk262t016uiut"]
+
+[ext_resource type="Script" path="res://scenes/ui/energy_bar/energy_bar.gd" id="1_15v7n"]
+[ext_resource type="Texture2D" uid="uid://bqursedqa3r0f" path="res://assets/ui/Container.png" id="1_ev7qq"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_qcoo1"]
+bg_color = Color(0.141176, 0.141176, 0.141176, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_uqqt3"]
+bg_color = Color(0.87451, 0.470588, 0.356863, 1)
+
+[node name="EnergyBar" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 36.0
+offset_bottom = 111.0
+script = ExtResource("1_15v7n")
+
+[node name="TextureRect" type="TextureRect" parent="."]
+visible = false
+layout_mode = 0
+offset_right = 72.0
+offset_bottom = 229.0
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("1_ev7qq")
+
+[node name="ProgressBar" type="ProgressBar" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 7.0
+offset_top = 7.0
+offset_right = -11.0
+offset_bottom = -3.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_qcoo1")
+theme_override_styles/fill = SubResource("StyleBoxFlat_uqqt3")
+value = 35.0
+rounded = true
+fill_mode = 3
+show_percentage = false

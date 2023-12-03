@@ -1,7 +1,11 @@
 [gd_scene load_steps=2 format=3 uid="uid://b7fy6fx3mrmav"]
 
-[ext_resource type="PackedScene" uid="uid://dxkar57dpbiwl" path="res://levels/game_base/game.tscn" id="1_8vijn"]
+[ext_resource type="PackedScene" uid="uid://cvov4ma1pv7dm" path="res://scenes/ui/main_menu/main_menu.tscn" id="1_757r3"]
 
 [node name="MainScene" type="Node2D"]
 
-[node name="GameBase" parent="." instance=ExtResource("1_8vijn")]
+[node name="MainMenu" parent="." instance=ExtResource("1_757r3")]
+offset_left = 145.0
+offset_top = 494.0
+offset_right = 145.0
+offset_bottom = 494.0

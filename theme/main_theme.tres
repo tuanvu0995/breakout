@@ -1,0 +1,11 @@
+[gd_resource type="Theme" load_steps=3 format=3 uid="uid://cfpyds4ysjaqn"]
+
+[ext_resource type="FontFile" uid="uid://cqrsska10q11v" path="res://assets/font/Kenney Future Narrow.ttf" id="1_f344t"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_t8wxu"]
+
+[resource]
+default_font = ExtResource("1_f344t")
+default_font_size = 14
+Button/font_sizes/font_size = 32
+Button/styles/disabled = SubResource("StyleBoxFlat_t8wxu")

@@ -174,7 +174,7 @@ func explode() -> void:
 	
 	var bodies = explosion_area.get_overlapping_bodies()
 	for body in bodies:
-		if body.is_in_group("Ball"): return
+		if body.is_in_group("Bricks") == false: return
 		if body.isDestroyed: continue
 		# Damage with a high enough value to make sure
 		# they're destroyed but also trigger any eventual

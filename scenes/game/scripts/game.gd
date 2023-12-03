@@ -2,13 +2,22 @@ extends Node2D
 
 class_name GameManager
 
+@export var game_over_scene: PackedScene = preload("res://scenes/ui/game_over/game_over.tscn")
 @export var brick_scene: PackedScene = preload("res://scenes/brick/brick.tscn")
+@export var block_energy: int = 10
 @export var energy_block_energy: int = 100
 
 @onready var paddle: CharacterBody2D = $Paddle
 @onready var ball: CharacterBody2D = $Ball
 @onready var spawn_pos_container: Node = $SpawnPos
 @onready var brick_container: Node = $Bricks
+
+## UI
+@onready var energy_bar: Control = $CanvasLayer/EnergyBar
+@onready var health_bar: Control = $CanvasLayer/HealthBar
+@onready var score_ui = $CanvasLayer/Score
+@onready var combo_timer: Timer = $ComboTimer
+@onready var combo_lbl = $Combo
 
 var health: int = 3
 var energy: float = 0.0
@@ -24,8 +33,10 @@ var started: bool = false
 func _ready():
 	randomize()
 	
+	hide_combo()
+	
 	Globals.camera = $Camera
-	Globals.camera.objects = [ball]
+	Globals.camera.objects = [ball, paddle]
 	
 	ball.attached_to = paddle.launch_point
 	paddle.ball_attached = ball
@@ -79,33 +90,38 @@ func reset_and_attach_ball() -> void:
 func add_energy(value: float) -> void:
 	energy += value
 	energy = clamp(energy, 0, 100)
-	#energy_bar.set_energy(energy)
+	energy_bar.set_energy(energy)
 	
 func remove_energy(value: float) -> void:
 	energy -= value
 	energy = clamp(energy, 0, 100)
-	#energy_bar.set_energy(energy)
+	energy_bar.set_energy(energy)
 
 func reset_energy() -> void:
 	energy = 0
-	#energy_bar.set_energy(energy)
+	energy_bar.set_energy(energy)
 	
 func reset_health() -> void:
 	health = 3
-	#health_bar.set_health(health)
+	health_bar.set_health(health)
 	
 func reset_score() -> void:
 	score = 0
-	#score_ui.set_score(score)
+	score_ui.set_score(score)
 	
 func show_combo(combo: int) -> void:
-	#combo_lbl.text = "COMBO " + str(combo)
-	#combo_lbl.visible = true
+	combo_lbl.text = "COMBO " + str(combo)
+	combo_lbl.visible = true
 	pass
 	
 func hide_combo() -> void:
-	#combo_lbl.visible = false
+	combo_lbl.visible = false
 	pass
+
+func show_game_over() -> void:
+	var instance = game_over_scene.instantiate()
+	$CanvasLayer.add_child(instance)
+	instance.retry.connect(on_game_over_retry)
 
 ### SIGNALS ###
 func on_brick_destroyed(which) -> void:
@@ -114,10 +130,10 @@ func on_brick_destroyed(which) -> void:
 	
 	combo += 1
 	show_combo(combo)
-	#combo_timer.start()
+	combo_timer.start()
 	score += score_brick_destroyed * combo
 	Globals.stats["score"] = score
-	#score_ui.set_score(score)
+	score_ui.set_score(score)
 	
 	if bricks_to_destroy.is_empty():
 		started = false
@@ -127,14 +143,14 @@ func on_brick_destroyed(which) -> void:
 		#show_stage_clear()
 
 func _on_ball_hit_block(block) -> void:
-	#add_energy(block_energy)
+	add_energy(block_energy)
 	if block._destroyed: return
 	combo += 1
 	show_combo(combo)
-	#combo_timer.start()
+	combo_timer.start()
 	score += score_brick_touched * combo
 	Globals.stats["score"] = score
-	#score_ui.set_score(score)
+	score_ui.set_score(score)
 
 func on_energy_brick_destroyed() -> void:
 	add_energy(energy_block_energy)
@@ -144,13 +160,30 @@ func _on_DeathArea_body_entered(body: Node) -> void:
 	health -= 1
 	health = int(clamp(health, 0, 3))
 	
-	#health_bar.set_health(health)
+	health_bar.set_health(health)
 	
 	body.die()
 	
 	if health == 0:
 		paddle.game_over = true
-		#show_game_over()
+		show_game_over()
 		return
 		
 	reset_and_attach_ball()
+
+func on_game_over_retry() -> void:
+	reset_and_attach_ball()
+	reset_health()
+	reset_energy()
+	reset_score()
+	time = 0.0
+	Globals.reset_stats()
+	remove_all_bricks()
+	layout_bricks()
+	
+func _on_combo_timer_timeout():
+	combo = 0
+	hide_combo()
+	
+func _on_paddle_start():
+	started = true

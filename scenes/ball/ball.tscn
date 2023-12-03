@@ -1,8 +1,11 @@
-[gd_scene load_steps=14 format=3 uid="uid://wk0ub1yi1gdh"]
+[gd_scene load_steps=17 format=3 uid="uid://wk0ub1yi1gdh"]
 
 [ext_resource type="Script" path="res://scenes/ball/scripts/ball.gd" id="1_v6i22"]
 [ext_resource type="Texture2D" uid="uid://dmbbyp2ifw6pd" path="res://assets/ball/ball.png" id="2_fojbj"]
 [ext_resource type="Script" path="res://addons/trail_2d/trail_2d.gd" id="3_7wj0m"]
+[ext_resource type="AudioStream" uid="uid://df701vcsvw22h" path="res://assets/audio/impact/impactGeneric_light_004.ogg" id="4_ugsnn"]
+[ext_resource type="AudioStream" uid="uid://bafrgakcjg3gs" path="res://assets/audio/impact/impactGeneric_light_002.ogg" id="5_ds085"]
+[ext_resource type="AudioStream" uid="uid://bosmy16oy8ayt" path="res://assets/audio/impact/impactGlass_light_003.ogg" id="6_3juo4"]
 
 [sub_resource type="Curve" id="Curve_661av"]
 _data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.145308), 0.0, 0.0, 0, 0]
@@ -83,7 +86,8 @@ tracks/1/keys = {
 
 [sub_resource type="Animation" id="Animation_c2ce7"]
 resource_name = "bounce"
-length = 0.3
+length = 0.2
+step = 0.05
 tracks/0/type = "value"
 tracks/0/imported = false
 tracks/0/enabled = true
@@ -91,10 +95,10 @@ tracks/0/path = NodePath("Sprite:scale")
 tracks/0/interp = 1
 tracks/0/loop_wrap = true
 tracks/0/keys = {
-"times": PackedFloat32Array(0, 0.1, 0.2, 0.3),
+"times": PackedFloat32Array(0, 0.05, 0.1, 0.2),
 "transitions": PackedFloat32Array(-2, -2, -2, -2),
 "update": 0,
-"values": [Vector2(1, 1), Vector2(0.8, 1.3), Vector2(1.2, 0.9), Vector2(1, 0.9)]
+"values": [Vector2(1, 1), Vector2(0.8, 1.3), Vector2(1.2, 0.9), Vector2(1, 1)]
 }
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_eqja8"]
@@ -129,9 +133,10 @@ scale_max = 0.2
 scale_curve = SubResource("CurveTexture_2wsth")
 
 [node name="Ball" type="CharacterBody2D" groups=["Ball"]]
+scale = Vector2(0.2, 0.2)
 script = ExtResource("1_v6i22")
 speed = 600.0
-deccel = 0.5
+deccel = 0.8
 max_speed_color = Color(1, 0.368627, 0.301961, 1)
 
 [node name="Trail" type="Line2D" parent="."]
@@ -162,3 +167,13 @@ lifetime = 1.5
 one_shot = true
 speed_scale = 1.6
 explosiveness = 0.7
+
+[node name="WallHitSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("4_ugsnn")
+
+[node name="PaddleHitSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("5_ds085")
+volume_db = -17.627
+
+[node name="BrickHitSound" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("6_3juo4")

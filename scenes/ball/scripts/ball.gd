@@ -98,6 +98,7 @@ func _physics_process(delta: float) -> void:
 #		print("Normal:", normal)
 #		print("Dot:", normal.dot(Vector2.UP))
 		spawn_bump_particles(collision.get_position(), normal)
+		$PaddleHitSound.play()
 		
 		# no bump boost == small hitstop 
 		if boost_factor == 1.0:
@@ -142,6 +143,8 @@ func _physics_process(delta: float) -> void:
 		# Reset bump boost
 		boost_factor = 1.0
 	elif collision.get_collider().is_in_group("Bricks"):
+		$BrickHitSound.play()
+		
 		if collision.get_collider().type == collision.get_collider().TYPE.ENERGY or collision.get_collider().type == collision.get_collider().TYPE.EXPLOSIVE:
 			velocity = velocity_before_collision
 			Globals.camera.shake(1.5, 25, 20)
@@ -150,6 +153,7 @@ func _physics_process(delta: float) -> void:
 			Globals.camera.shake(0.3, 15, 10)
 	else:
 #		print("HIT OTHER: ", Globals.stats["ball_bounces"])
+		$WallHitSound.play()
 		spawn_bounce_particles(collision.get_position(), normal)
 		velocity = velocity.bounce(normal)
 	

@@ -25,6 +25,7 @@ scale_curve = SubResource("CurveTexture_mfwpf")
 
 [node name="BounceParticles" type="GPUParticles2D"]
 scale = Vector2(2, 2)
+emitting = false
 process_material = SubResource("ParticleProcessMaterial_m244q")
 texture = ExtResource("1_eybc4")
 lifetime = 0.5

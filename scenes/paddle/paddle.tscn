@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scenes/paddle/scripts/paddle.gd" id="1_7gn6k"]
 [ext_resource type="Texture2D" uid="uid://oj2ix6oo4rdh" path="res://assets/paddle/Paddle.png" id="1_ifyaj"]
-[ext_resource type="Shader" path="res://shareds/shaders/deform.gdshader" id="2_tib45"]
+[ext_resource type="Shader" path="res://shaders/deform.gdshader" id="2_tib45"]
 [ext_resource type="PackedScene" uid="uid://fxbsmy6n17ok" path="res://scenes/paddle/paddle_ghost_spawner.tscn" id="4_4mx64"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_eeofp"]

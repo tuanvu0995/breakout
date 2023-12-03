@@ -1,0 +1,101 @@
+[gd_scene load_steps=9 format=3 uid="uid://dkip5awjags2m"]
+
+[ext_resource type="Script" path="res://scenes/ui/game_over/game_over.gd" id="1_b6hp8"]
+[ext_resource type="Shader" path="res://shaders/glitch.gdshader" id="1_xvi3r"]
+[ext_resource type="Shader" path="res://shaders/radial_blur.gdshader" id="2_gjb32"]
+[ext_resource type="Theme" uid="uid://cfpyds4ysjaqn" path="res://theme/main_theme.tres" id="3_hfe43"]
+
+[sub_resource type="Gradient" id="Gradient_fanq7"]
+colors = PackedColorArray(0, 0, 0, 0.0313726, 0.827085, 0.416239, 0.393, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_unhv6"]
+gradient = SubResource("Gradient_fanq7")
+fill = 1
+fill_from = Vector2(0.527473, 0.479853)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4tnsx"]
+shader = ExtResource("1_xvi3r")
+shader_parameter/shake_power = 0.019
+shader_parameter/shake_rate = 0.691
+shader_parameter/shake_speed = 2.9
+shader_parameter/shake_block_size = 40.0
+shader_parameter/shake_color_rate = 0.01
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8lrrq"]
+shader = ExtResource("2_gjb32")
+shader_parameter/blur_center = Vector2(0.5, 0.5)
+shader_parameter/blur_power = 0.004
+shader_parameter/sampling_count = 35
+
+[node name="GameOver" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_b6hp8")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = SubResource("GradientTexture2D_unhv6")
+
+[node name="Glitch" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_4tnsx")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 1, 1, 0)
+
+[node name="BackBufferCopy" type="BackBufferCopy" parent="."]
+copy_mode = 2
+
+[node name="RadialBlur" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_8lrrq")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(1, 1, 1, 0)
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 0
+offset_left = 42.0
+offset_top = 108.0
+offset_right = 602.0
+offset_bottom = 241.0
+theme = ExtResource("3_hfe43")
+theme_override_font_sizes/font_size = 70
+text = "Game Over"
+horizontal_alignment = 1
+vertical_alignment = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 98.0
+offset_top = 485.0
+offset_right = 530.0
+offset_bottom = 623.0
+
+[node name="Retry" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+theme = ExtResource("3_hfe43")
+text = "RETRY"
+
+[node name="Quit" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+theme = ExtResource("3_hfe43")
+text = "QUIT"
+
+[connection signal="pressed" from="VBoxContainer/Retry" to="." method="_on_RetryBtn_pressed"]
+[connection signal="pressed" from="VBoxContainer/Quit" to="." method="_on_QuitBtn_pressed"]
