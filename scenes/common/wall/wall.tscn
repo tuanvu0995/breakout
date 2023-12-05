@@ -1,15 +1,19 @@
-[gd_scene load_steps=2 format=3 uid="uid://ccxhkvwgo06ib"]
+[gd_scene load_steps=3 format=3 uid="uid://ccxhkvwgo06ib"]
 
 [ext_resource type="Script" path="res://scenes/common/wall/scripts/wall.gd" id="1_ig3xg"]
+[ext_resource type="Texture2D" uid="uid://demu18g5v6fo5" path="res://assets/patterns/pattern_21.png" id="3_mwp53"]
 
 [node name="Wall" type="StaticBody2D"]
 script = ExtResource("1_ig3xg")
 
-[node name="Sprite" type="Sprite2D" parent="."]
-
-[node name="CollisionPolygon2D2" type="CollisionPolygon2D" parent="."]
-polygon = PackedVector2Array(3, 3, 650, -1, 651, 1147, 727, 1149, 727, -79, -66, -77, -72, 1156, -1, 1155)
+[node name="CollisionPolygon" type="CollisionPolygon2D" parent="."]
+polygon = PackedVector2Array(2.08165e-12, 2.08165e-12, 1917, 2.08165e-12, 1917, 1081, 2027, 1078, 2027, -72, -78, -74, -85, 1081, 0, 1081)
 
 [node name="Polygon2D" type="Polygon2D" parent="."]
-color = Color(0.4, 0.317647, 0.447059, 1)
-polygon = PackedVector2Array(-4, 1152, -820, 1157, -790, -592, 1377, -605, 1381, 1134, 655, 1148, 655, -6, -3, -1)
+texture_filter = 1
+texture_repeat = 2
+color = Color(0.94902, 0.827451, 0.788235, 1)
+texture = ExtResource("3_mwp53")
+texture_scale = Vector2(5, 5)
+texture_rotation = 2.79253
+polygon = PackedVector2Array(2.08165e-12, 1079, -454, 1070, -454, -396, 922, -396, 2333, -386, 2343, 1080, 1925, 1079, 1925, -1, 0, 0)

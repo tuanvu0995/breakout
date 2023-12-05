@@ -170,4 +170,8 @@ libraries = {
 sprite = NodePath("../Sprite")
 color = Color(0.831373, 0.831373, 0.831373, 0.054902)
 
+[node name="DoubleTapTimer" type="Timer" parent="."]
+wait_time = 0.2
+
 [connection signal="timeout" from="DashTimer" to="." method="_on_DashTimer_timeout"]
+[connection signal="timeout" from="DoubleTapTimer" to="." method="_on_doble_tap_timer_timeout"]

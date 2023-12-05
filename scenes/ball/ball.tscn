@@ -148,7 +148,6 @@ script = ExtResource("3_7wj0m")
 length = 20
 
 [node name="Sprite" type="Sprite2D" parent="."]
-visibility_layer = 3
 texture = ExtResource("2_fojbj")
 
 [node name="CollisionShape" type="CollisionShape2D" parent="."]
@@ -177,3 +176,5 @@ volume_db = -17.627
 
 [node name="BrickHitSound" type="AudioStreamPlayer2D" parent="."]
 stream = ExtResource("6_3juo4")
+
+[connection signal="animation_finished" from="AnimationPlayer" to="." method="_on_animation_player_animation_finished"]

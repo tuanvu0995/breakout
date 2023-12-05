@@ -1,17 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://da7oxj4u6cj7a"]
+[gd_scene load_steps=3 format=3 uid="uid://da7oxj4u6cj7a"]
+
+[ext_resource type="PackedScene" uid="uid://bny43udhl3mkh" path="res://scenes/water/water.tscn" id="3_05lux"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_60cwd"]
-size = Vector2(3000, 400)
+size = Vector2(2910, 844)
 
 [node name="DeathArea" type="Area2D"]
-position = Vector2(2.08165e-12, 1130)
+position = Vector2(2.08165e-12, 2.08165e-12)
 
 [node name="CollisionShape" type="CollisionShape2D" parent="."]
-position = Vector2(310, 197)
+position = Vector2(1452, 471)
 shape = SubResource("RectangleShape2D_60cwd")
 
-[node name="Polygon" type="Polygon2D" parent="."]
-position = Vector2(-361.803, 26.3654)
-scale = Vector2(2.16007, 3.58571)
-color = Color(0.866667, 0.356863, 0.364706, 1)
-polygon = PackedVector2Array(-381.097, -4.1846, 1002.19, -5.9585, 1000.09, 100.78, -378.572, 102.249)
+[node name="Water" parent="." instance=ExtResource("3_05lux")]

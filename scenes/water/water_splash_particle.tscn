@@ -1,0 +1,88 @@
+[gd_scene load_steps=11 format=3 uid="uid://dpy6ousnmlspj"]
+
+[ext_resource type="Texture2D" uid="uid://dmbbyp2ifw6pd" path="res://assets/ball/ball.png" id="1_4bjqg"]
+[ext_resource type="Script" path="res://scenes/water/water_splash_particle.gd" id="2_rfp2m"]
+
+[sub_resource type="Gradient" id="Gradient_x71b7"]
+offsets = PackedFloat32Array(0.239796, 1)
+colors = PackedColorArray(0.800491, 0.800491, 0.800491, 1, 1, 1, 1, 1)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_qxb14"]
+gradient = SubResource("Gradient_x71b7")
+
+[sub_resource type="Curve" id="Curve_f17vq"]
+_data = [Vector2(0.0307384, 0.628755), 0.0, 0.0, 0, 0, Vector2(0.384322, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.360944), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_41pnv"]
+curve = SubResource("Curve_f17vq")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_c3hw7"]
+lifetime_randomness = 0.2
+particle_flag_disable_z = true
+direction = Vector3(2.08165e-12, -1, 2.08165e-12)
+spread = 30.0
+gravity = Vector3(2.08165e-12, 98, 2.08165e-12)
+initial_velocity_min = 50.0
+initial_velocity_max = 100.0
+angular_velocity_min = -150.0
+angular_velocity_max = 300.0
+orbit_velocity_min = 0.0
+orbit_velocity_max = 0.0
+radial_accel_min = -32.0
+damping_min = 15.0
+damping_max = 25.0
+scale_min = 0.1
+scale_max = 0.2
+scale_curve = SubResource("CurveTexture_41pnv")
+color = Color(0.894118, 0.956863, 0.960784, 0.345098)
+color_ramp = SubResource("GradientTexture1D_qxb14")
+
+[sub_resource type="Curve" id="Curve_c42h1"]
+_data = [Vector2(0.0263732, 0.453648), 0.0, 0.0, 0, 0, Vector2(0.436704, 0.96867), 0.0, 0.0, 0, 0, Vector2(1, 0.639056), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_u6db7"]
+curve = SubResource("Curve_c42h1")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_inl0u"]
+lifetime_randomness = 0.5
+particle_flag_disable_z = true
+direction = Vector3(2.08165e-12, -1, 2.08165e-12)
+spread = 70.0
+gravity = Vector3(0, 98, 0)
+initial_velocity_min = 40.0
+initial_velocity_max = 70.0
+angular_velocity_min = 90.0
+angular_velocity_max = 90.0
+orbit_velocity_min = 0.0
+orbit_velocity_max = 0.0
+scale_min = 0.05
+scale_max = 0.1
+scale_curve = SubResource("CurveTexture_u6db7")
+color = Color(1, 1, 1, 0.796078)
+
+[node name="WaterSplashParticles" type="GPUParticles2D"]
+scale = Vector2(2, 2)
+emitting = false
+amount = 30
+sub_emitter = NodePath("GPUParticles2D")
+process_material = SubResource("ParticleProcessMaterial_c3hw7")
+texture = ExtResource("1_4bjqg")
+lifetime = 2.0
+one_shot = true
+explosiveness = 0.9
+script = ExtResource("2_rfp2m")
+
+[node name="GPUParticles2D" type="GPUParticles2D" parent="."]
+emitting = false
+amount = 50
+process_material = SubResource("ParticleProcessMaterial_inl0u")
+texture = ExtResource("1_4bjqg")
+lifetime = 1.5
+one_shot = true
+explosiveness = 0.9
+
+[node name="Timer" type="Timer" parent="."]
+
+[connection signal="timeout" from="Timer" to="." method="_on_timer_timeout"]

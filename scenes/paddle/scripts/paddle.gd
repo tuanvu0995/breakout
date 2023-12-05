@@ -12,6 +12,7 @@ signal start()
 @export var dash_duration: float = 0.1
 @export var max_lean_angle: float = 7.0
 @export var lean_speed: float = 8.0
+@export var double_tap_duration: float = 0.2
 
 @export_category("Oscillator")
 @export var spring: float = 150.0
@@ -19,6 +20,8 @@ signal start()
 @export var velocity_multiplier: float = 0.2
 
 var dashing: bool = false
+var can_dash: bool = false
+var last_move_key: bool = false
 var ball_attached = null
 var bumping: bool = false : get = get_bumping, set = set_bumping
 var game_over: bool = false
@@ -32,7 +35,7 @@ var oscillator_velocity: float = 0.0
 
 ### Hitstop
 var hitstop_frames = 0
- 
+
 @onready var sprite: Sprite2D = $Sprite
 @onready var dash_timer: Timer = $DashTimer
 @onready var anim: AnimationPlayer = $AnimationPlayer
@@ -40,9 +43,29 @@ var hitstop_frames = 0
 #@onready var laser: Area2D = $Laser
 @onready var thickness: float = $CollisionShape.shape.extents.y
 @onready var ghostSpawner: PaddleGhostSpwner = $PaddleGhostSpawner
+@onready var doubleTapTimer: Timer = $DoubleTapTimer
+
+var move_left_pressed: bool = false
+var move_right_pressed: bool = false
+var dash_direction: int = 0
 
 func _ready() -> void:
 	pass
+	
+func _input(event):
+	if event is InputEventKey:
+		if event.is_action_pressed("move_left"):
+			if move_left_pressed:
+				can_dash = true
+			else:
+				move_left_pressed = true
+				doubleTapTimer.start(double_tap_duration)
+		if event.is_action_pressed("move_right"):
+			if move_right_pressed:
+				can_dash = true
+			else:
+				move_right_pressed = true
+				doubleTapTimer.start(double_tap_duration)
 
 func _process(delta: float) -> void:
 	# Hitstop
@@ -60,7 +83,17 @@ func _process(delta: float) -> void:
 		velocity.x = lerp(velocity.x, dir * speed, accel * delta)
 	else:
 		velocity.x = lerp(velocity.x, 0.0, deccel * delta)
-		
+
+	# Dash
+	if dir != 0 and not dashing and can_dash:
+		dashing = true
+		dash_timer.start(dash_duration)
+		ghostSpawner.start_spawn()
+		velocity.x = sign(velocity.x) * dash_speed
+		can_dash = false
+		move_left_pressed = false
+		move_right_pressed = false
+
 	# Oscillator
 	oscillator_velocity += (velocity.x / speed) * velocity_multiplier
 	var force = -spring * displacement + damp * oscillator_velocity
@@ -78,12 +111,6 @@ func _process(delta: float) -> void:
 			launch_ball()
 		else:
 			ball.bump_boost(self)
-	
-	if Input.is_action_just_pressed("dash") and not dashing:
-		dashing = true
-		dash_timer.start(dash_duration)
-		ghostSpawner.start_spawn()
-		velocity.x = sign(velocity.x) * dash_speed
 		
 	if Input.is_action_just_pressed("special"):
 		if get_parent().energy == 100.0:
@@ -134,3 +161,7 @@ func launch_ball() -> void:
 func _on_DashTimer_timeout() -> void:
 	dashing = false
 	ghostSpawner.stop_spawn()
+
+func _on_doble_tap_timer_timeout():
+	move_left_pressed = false
+	move_right_pressed = false

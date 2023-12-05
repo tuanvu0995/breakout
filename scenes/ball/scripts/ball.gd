@@ -124,7 +124,7 @@ func _physics_process(delta: float) -> void:
 				var distance = collision.get_position() - collision.get_collider().global_position
 				var amount = distance.x / 96.0
 				normal = normal.rotated(deg_to_rad(max_normal_angle) * amount)
-				velocity = velocity.bounce(normal) * boost_factor
+				velocity = velocity.bounce(normal)
 		else:
 #			print("HIT SIDE: ", Globals.stats["ball_bounces"])
 			# Check if below half of the thickness
@@ -171,8 +171,9 @@ func appear() -> void:
 	animationPlayer.play("appear")
 
 func die() -> void:
-	spawn_explode_particles(global_position)
-	Globals.camera.shake(1.5, 25, 20)
+	#spawn_explode_particles(global_position)
+	#Globals.camera.shake(1.5, 25, 20)
+	$Trail.visible = false
 
 func color_based_on_velocity() -> void:
 	var val = remap(velocity.length(), speed, max_speed, 0, 1.0)
@@ -257,6 +258,11 @@ func bump_boost(who) -> void:
 		who.start_hitstop(hitstop_bump_late_early)
 
 func launch() -> void:
-	#velocity = (-global_transform.y).rotated(randf_range(-PI/3.0, PI/3.0)) * speed
-	velocity = -global_transform.y * speed * 6
+	#velocity = (-global_transform.y).rotated(randf_range(-PI/3.0, PI/3.0)) * speed * 6
+	velocity = -global_transform.y * speed * 7
 	attached_to = null
+
+
+func _on_animation_player_animation_finished(anim_name):
+	if anim_name == "appear":
+		$Trail.visible = true
