@@ -61,6 +61,26 @@ var base_layer: int
 var moving: bool = false
 var shape := ""  # "" = square/long; otherwise a BrickShapes name
 var is_boss := false
+var custom_collider: Node2D
+var home_pos: Vector2
+
+## Final boss phase change: new outline, motion and color, keeping position and HP.
+func morph(new_shape: String, motion: Dictionary, color: Color) -> void:
+	for k in ["move_amp", "move_freq", "orbit_center", "orbit_radius", "orbit_angle", "orbit_speed", "spin", "blink", "phase"]:
+		spec.erase(k)
+	spec.merge(motion, true)
+	spec["color"] = color
+	shape = new_shape
+	rotation = 0.0
+	modulate.a = 1.0
+	collision_layer = base_layer
+	base_pos = home_pos  # each phase moves around the boss's original spot
+	position = home_pos
+	t = 0.0
+	moving = true
+	update_size_visuals()
+	update_type_visuals()
+	hit_flash()
 var max_health := 1.0
 
 func _ready() -> void:
@@ -75,6 +95,7 @@ func _ready() -> void:
 		rotation_degrees = spec.get("rot", 0.0)
 		moving = spec.has("spin") or spec.has("move_amp") or spec.has("orbit_radius") or spec.has("blink")
 	base_pos = position
+	home_pos = position
 	base_layer = collision_layer
 	
 	health = spec.get("hp", health_dict[type])
@@ -140,7 +161,9 @@ func update_size_visuals() -> void:
 	if shape != "":
 		$CollisionShapeSmall.disabled = true
 		$CollisionShapeLong.disabled = true
-		add_child(BrickShapes.collider(shape))
+		if custom_collider: custom_collider.queue_free()
+		custom_collider = BrickShapes.collider(shape)
+		add_child(custom_collider)
 		size_sprite.texture = BrickShapes.texture(shape)
 		# pips sit on the visual center, kept upright and scaled to the shape
 		type_sprite.position = BrickShapes.centroid(shape)

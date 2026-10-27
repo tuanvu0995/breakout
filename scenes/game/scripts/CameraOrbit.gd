@@ -2,6 +2,8 @@ extends Camera2D
 
 @export var dynamic_enabled: bool = false
 @export_range(0, 1, 0.01) var dynamic_factor: float = 0.5
+## Overall zoom; the dynamic breathing zoom is applied on top of it.
+var base_zoom := 1.0
 
 var _duration = 0.0
 var _period_in_ms = 0.0
@@ -55,7 +57,7 @@ func _process(delta):
 			
 #			print("Distance: ", distance)
 #			print("Max dist: ", max_dist)
-			zoom = lerp(Vector2(0.975, 0.975), Vector2(1.025, 1.025), 1 - (distance/max_dist))
+			zoom = lerp(Vector2(0.975, 0.975), Vector2(1.025, 1.025), 1 - (distance/max_dist)) * base_zoom
 	else:
 		pass
 	

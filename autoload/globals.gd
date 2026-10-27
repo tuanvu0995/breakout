@@ -110,12 +110,12 @@ const SHAPES := {
 ## accent: inner stripe color, trail: engine flame color.
 const SKINS := [
 	{"name": "ARROW", "shape": "arrow", "hull": C_WHITE, "cockpit": C_CYAN, "trail": C_CYAN, "unlock": 1},
-	{"name": "DELTA", "shape": "delta", "hull": C_AMBER, "cockpit": C_DARK, "accent": C_CORAL, "trail": C_AMBER, "unlock": 5},
-	{"name": "SAUCER", "shape": "saucer", "hull": C_GREEN, "cockpit": C_WHITE, "accent": C_CYAN, "trail": C_GREEN, "unlock": 10},
-	{"name": "TWIN", "shape": "twin", "hull": C_VIOLET, "cockpit": C_AMBER, "trail": C_VIOLET, "unlock": 15},
-	{"name": "MANTA", "shape": "manta", "hull": C_CYAN, "cockpit": C_CORAL, "accent": C_WHITE, "trail": C_CYAN, "unlock": 20},
-	{"name": "EMBER", "shape": "delta", "hull": C_CORAL, "cockpit": C_AMBER, "accent": C_AMBER, "trail": C_CORAL, "unlock": 25},
-	{"name": "NOVA", "shape": "manta", "hull": C_AMBER, "cockpit": C_VIOLET, "accent": C_VIOLET, "trail": C_WHITE, "unlock": 31},
+	{"name": "DELTA", "shape": "delta", "hull": C_AMBER, "cockpit": C_DARK, "accent": C_CORAL, "trail": C_AMBER, "unlock": 10},
+	{"name": "SAUCER", "shape": "saucer", "hull": C_GREEN, "cockpit": C_WHITE, "accent": C_CYAN, "trail": C_GREEN, "unlock": 20},
+	{"name": "TWIN", "shape": "twin", "hull": C_VIOLET, "cockpit": C_AMBER, "trail": C_VIOLET, "unlock": 40},
+	{"name": "MANTA", "shape": "manta", "hull": C_CYAN, "cockpit": C_CORAL, "accent": C_WHITE, "trail": C_CYAN, "unlock": 60},
+	{"name": "EMBER", "shape": "delta", "hull": C_CORAL, "cockpit": C_AMBER, "accent": C_AMBER, "trail": C_CORAL, "unlock": 80},
+	{"name": "NOVA", "shape": "manta", "hull": C_AMBER, "cockpit": C_VIOLET, "accent": C_VIOLET, "trail": C_WHITE, "unlock": 121},
 	{"name": "HAWK", "shape": "hawk", "hull": C_WHITE, "cockpit": C_RED, "accent": C_RED, "trail": C_CORAL, "score": 5000},
 	{"name": "VOLT", "shape": "bolt", "hull": C_AMBER, "cockpit": C_DARK, "accent": C_WHITE, "trail": C_AMBER, "score": 10000},
 	{"name": "CLAW", "shape": "claw", "hull": C_RED, "cockpit": C_WHITE, "accent": C_DARK, "trail": C_RED, "score": 20000},

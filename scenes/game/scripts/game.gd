@@ -80,7 +80,7 @@ func set_fast(on: bool) -> void:
 
 ## EXPAND / SHRINK pickups move the side walls for a while.
 const ARENA_TIME := 12.0
-const ARENA_STEP := 130.0
+const ARENA_STEP := 90.0
 const ARENA_MIN := 360.0
 var level_half_width := 678.0
 var arena_time := 0.0
@@ -166,14 +166,15 @@ func layout_bricks() -> void:
 	var theme: Dictionary = Levels.theme_of(level)
 	$Pattern.color = theme["field"]
 	$Wall/Polygon2D.color = theme["wall"]
-	backdrop.set_theme(((level - 1) % Levels.COUNT) / 5, theme["field"], theme["wall"])
-	frame_decor.set_color(theme["wall"])
-	Audio.play_theme_music(((level - 1) % Levels.COUNT) / 5)
+	backdrop.set_theme(Levels.theme_index(level), theme["field"], theme["wall"])
+	frame_decor.set_color(theme["wall"], Levels.theme_index(level))
+	Audio.play_theme_music(Levels.theme_index(level))
 	Audio.sfx("level_start", -6.0)
 	if Globals.custom_level.is_empty() and level <= Levels.COUNT:
 		Leaderboard.start(level)
 	var layout: Array = Globals.custom_level if not Globals.custom_level.is_empty() else Levels.build(level)
 	lives_lost = 0
+	final_phase = 0
 	boss = null
 	boss_attack = 3.0
 	level_half_width = Levels.half_width(level, layout)
@@ -216,7 +217,7 @@ func set_field_width(half_width: float, color: Color) -> void:
 	for i in 2:
 		var side := -1 if i == 0 else 1
 		side_walls[i].get_child(1).color = color
-		side_walls[i].get_child(2).set_color(color)
+		side_walls[i].get_child(2).set_color(color, Levels.theme_index(level))
 		create_tween().tween_property(side_walls[i], "position:x", Levels.CX + side * half_width, 0.6) \
 			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
@@ -300,9 +301,8 @@ func apply_flat_style() -> void:
 	hint.game = self
 	hint.position = Vector2(32, 1080 - 32 - (150 if not DisplayServer.is_touchscreen_available() else 112))
 	$CanvasLayer.add_child(hint)
-	frame_decor = WallDecor.new()
-	frame_decor.rects = [Rect2(-460, -400, 460, 1500), Rect2(1356, -400, 400, 1500), Rect2(0, -400, 1356, 400)]
-	$Wall.add_child(frame_decor)
+	build_frame()
+	$Camera.base_zoom = 0.94  # fit the wide arena plus a HUD band on top
 	combo_lbl.add_theme_color_override("font_color", Globals.C_AMBER)
 	# Combo / announcements live in the HUD under the score, on a dark pill,
 	# so they never blend into the bricks behind them.
@@ -321,6 +321,22 @@ func place_combo() -> void:
 	combo_lbl.size = Vector2.ZERO
 	combo_lbl.reset_size()
 	combo_lbl.position = Vector2(960 - combo_lbl.size.x / 2.0, 88)
+
+## Static outer frame (U shape) around the widest possible arena. The movable
+## side walls narrow it per level. Coordinates are local to $Wall.
+func build_frame() -> void:
+	var wall_origin: Vector2 = $Wall.position
+	var l: float = Levels.CX - Levels.FULL_HALF_WIDTH - wall_origin.x
+	var r: float = Levels.CX + Levels.FULL_HALF_WIDTH - wall_origin.x
+	var ol := l - 600.0
+	var orr := r + 600.0
+	var poly := PackedVector2Array([Vector2(l, 1081), Vector2(l, 0), Vector2(r, 0), Vector2(r, 1081),
+		Vector2(orr, 1081), Vector2(orr, -500), Vector2(ol, -500), Vector2(ol, 1081)])
+	$Wall/Polygon2D.polygon = poly
+	$Wall/CollisionPolygon.polygon = poly
+	frame_decor = WallDecor.new()
+	frame_decor.rects = [Rect2(ol, -500, l - ol, 1581), Rect2(r, -500, orr - r, 1581), Rect2(l, -500, r - l, 500)]
+	$Wall.add_child(frame_decor)
 
 func next_level() -> void:
 	# Clear bonus: faster clears earn more
@@ -346,6 +362,10 @@ func next_level() -> void:
 	if not Globals.custom_level.is_empty():
 		get_tree().change_scene_to_file("res://scenes/editor/level_editor.tscn")
 		return
+	if Levels.is_final(level) and level <= Levels.COUNT:
+		Globals.reach_level(level + 1)
+		show_victory()
+		return
 	level += 1
 	var unlocked := Globals.reach_level(level)
 	time = 0.0
@@ -358,7 +378,7 @@ func next_level() -> void:
 	if not unlocked.is_empty():
 		flash_text("NEW SHIP: %s" % unlocked["name"])
 	elif level == Levels.COUNT + 1:
-		flash_text("ALL 30 CLEARED!  LOOP 2")
+		flash_text("NEW GAME+")
 	else:
 		flash_text(Levels.title_of(level))
 
@@ -417,15 +437,55 @@ func update_boss(delta: float) -> void:
 		if alive:
 			boss_bar.get_node("Bar").value = boss.health / boss.max_health * 100.0
 	if not alive or not started: return
+	if boss.spec.get("final", false): _final_phase()
 	boss_attack -= delta
 	if boss_attack <= 0.0 and boss.collision_layer != 0:
 		# attacks speed up as the boss loses health
-		boss_attack = lerp(1.4, 3.0, boss.health / boss.max_health)
-		var d := Debris.new()
-		d.color = boss.spec.get("color", Globals.C_RED)
-		d.hit.connect(on_debris_hit)
-		add_child(d)
-		d.global_position = boss.global_position + Vector2(0, 60)
+		boss_attack = lerp(1.4, 3.0, boss.health / boss.max_health) * (0.7 if boss.spec.get("final", false) else 1.0)
+		var shots := 1 + (final_phase / 2 if boss.spec.get("final", false) else 0)
+		for k in shots:
+			var d := Debris.new()
+			d.color = boss.spec.get("color", Globals.C_RED)
+			d.hit.connect(on_debris_hit)
+			add_child(d)
+			d.global_position = boss.global_position + Vector2((k - (shots - 1) / 2.0) * 90.0, 60)
+
+## THE ARCHITECT changes form at 75 / 50 / 25 % HP and summons escorts each time.
+const FINAL_PHASES := [
+	{"shape": "hex", "color": Color("f4f4ff"), "motion": {"move_amp": Vector2(260, 0), "move_freq": 0.5}},
+	{"shape": "circle", "color": Color("3ddcf5"), "motion": {"orbit_center": Vector2(683, 300), "orbit_radius": 170.0, "orbit_speed": 0.7}},
+	{"shape": "diamond", "color": Color("9b7bff"), "motion": {"move_amp": Vector2(240, 0), "move_freq": 0.7, "blink": 2.8}},
+	{"shape": "star", "color": Color("ff3d5e"), "motion": {"move_amp": Vector2(300, 80), "move_freq": 1.0, "spin": 2.0}},
+]
+var final_phase := 0
+
+func _final_phase() -> void:
+	var want: int = clamp(int((1.0 - boss.health / boss.max_health) * 4.0), 0, 3)
+	if want <= final_phase: return
+	final_phase = want
+	var ph: Dictionary = FINAL_PHASES[want]
+	boss.morph(ph["shape"], ph["motion"], ph["color"])
+	boss_fill.bg_color = ph["color"]
+	Fx.ring(self, boss.global_position, ph["color"], 400, 0.6)
+	Globals.camera.shake(0.8, 24, 18)
+	Audio.sfx("overdrive", 0.0, 0.0, 0.7)
+	flash_text(["", "PHASE 2: ORBIT", "PHASE 3: PHANTOM", "FINAL PHASE"][want])
+	# escorts for the new phase
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 120 + want
+	var layout := []
+	match want:
+		1: Levels._ring(layout, rng, Vector2(Levels.CX, 340), 290, 14, -0.5, 0.8, "hex")
+		2:
+			for i in 8: layout.append({"pos": Vector2(Levels.CX - 280 + i * 80.0, 560), "spec": {"type": 1, "size": 0,
+				"shape": "circle", "blink": 2.2, "phase": i * 0.3}})
+		3: Levels._ring(layout, rng, Vector2(Levels.CX, 340), 300, 14, 0.8, 1.0, "star")
+	for item in layout:
+		var b = add_brick(brick_container, item["pos"], item["spec"])
+		b.scale = Vector2.ZERO
+		create_tween().tween_property(b, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+var boss_fill: StyleBoxFlat
 
 func _build_boss_bar() -> void:
 	boss_bar = VBoxContainer.new()
@@ -448,6 +508,7 @@ func _build_boss_bar() -> void:
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = boss.spec.get("color", Globals.C_RED)
 	fill.set_corner_radius_all(8)
+	boss_fill = fill
 	bar.add_theme_stylebox_override("background", bg)
 	bar.add_theme_stylebox_override("fill", fill)
 	boss_bar.add_child(bar)
@@ -480,6 +541,60 @@ func boss_defeated(b: Node2D) -> void:
 	Engine.time_scale = 0.25
 	await get_tree().create_timer(0.6, true, false, true).timeout
 	Engine.time_scale = 1.0
+
+## Shown after THE ARCHITECT falls.
+func show_victory() -> void:
+	Audio.play_music(Audio.MENU_MUSIC)
+	var layer := CanvasLayer.new()
+	layer.layer = 25
+	add_child(layer)
+	var dim := ColorRect.new()
+	dim.color = Color(Globals.C_DARK, 0.85)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim)
+	var v := VBoxContainer.new()
+	v.theme = load("res://theme/main_theme.tres")
+	v.add_theme_constant_override("separation", 18)
+	v.custom_minimum_size = Vector2(900, 0)
+	layer.add_child(v)
+	var lines := [
+		["VICTORY", 96, Globals.C_AMBER],
+		["THE ARCHITECT HAS FALLEN", 34, Globals.C_CYAN],
+		["ALL 120 QUESTS CLEARED", 28, Globals.C_WHITE],
+		["STARS  %d / %d      SCORE  %d" % [Globals.total_stars(), Levels.COUNT * 3, score], 28, Globals.C_WHITE],
+		["THANKS FOR PLAYING", 24, Color(Globals.C_WHITE, 0.6)],
+	]
+	for l in lines:
+		var lbl := Label.new()
+		lbl.text = l[0]
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.add_theme_font_size_override("font_size", l[1])
+		lbl.add_theme_color_override("font_color", l[2])
+		v.add_child(lbl)
+	for b in [["QUESTS", "res://scenes/ui/level_select/level_select.tscn"], ["MAIN MENU", "res://scenes/ui/main_menu/main_menu.tscn"]]:
+		var btn := Button.new()
+		btn.text = b[0]
+		btn.add_theme_font_size_override("font_size", 36)
+		var bg: Color = Globals.C_AMBER if b[0] == "QUESTS" else Globals.C_WALL
+		for state in ["normal", "hover", "pressed", "focus"]:
+			var st := StyleBoxFlat.new()
+			st.bg_color = bg.lightened(0.15 if state in ["hover", "focus"] else 0.0)
+			st.set_corner_radius_all(18)
+			st.set_content_margin_all(14)
+			btn.add_theme_stylebox_override(state, st)
+		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+			btn.add_theme_color_override(c, Globals.C_DARK if b[0] == "QUESTS" else Globals.C_WHITE)
+		var path: String = b[1]
+		btn.pressed.connect(func(): get_tree().change_scene_to_file(path))
+		v.add_child(btn)
+	Audio.wire_buttons(v)
+	Fx.juice_buttons(v)
+	await get_tree().process_frame
+	v.position = (Vector2(1920, 1080) - v.size) / 2.0
+	for i in 6:
+		Fx.burst(self, Vector2(Levels.CX + randf_range(-500, 500), randf_range(150, 600)),
+			[Globals.C_AMBER, Globals.C_CYAN, Globals.C_VIOLET, Globals.C_CORAL][i % 4], 40, 700.0, 14.0)
+		await get_tree().create_timer(0.25).timeout
 
 func spawn_powerup(pos: Vector2) -> void:
 	var p := PowerUp.new()

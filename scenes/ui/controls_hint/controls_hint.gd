@@ -10,7 +10,6 @@ func _ready() -> void:
 	theme = load("res://theme/main_theme.tres")
 	add_theme_constant_override("separation", 8)
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.6).set_delay(0.5)
 	if DisplayServer.is_touchscreen_available():
 		_row("DRAG", "MOVE")
 		_row("TAP", "LAUNCH / BUMP")
@@ -52,6 +51,9 @@ func _row(key: String, action: String) -> void:
 func _process(delta: float) -> void:
 	if not game or not is_instance_valid(game): return
 	pulse += delta
+	# Only shown while the ball waits on the ship, so it never covers the arena in play.
+	var want := 1.0 if game.paddle.ball_attached and not game.paddle.game_over else 0.0
+	modulate.a = move_toward(modulate.a, want, delta * 3.0)
 	var energy: float = game.energy
 	if rows.has("SPACE"):
 		rows["SPACE"]["label"].text = "LAUNCH" if game.paddle.ball_attached else "BUMP / BOOST"

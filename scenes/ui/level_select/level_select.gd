@@ -1,5 +1,6 @@
 extends Control
-## Quest map: 6 themes x 5 levels. Cleared / next / locked are styled very differently.
+## Quest map: 12 worlds on the left, the selected world's 10 stages on the right.
+## Cleared / next / locked tiles are styled very differently.
 
 const Levels = preload("res://scenes/levels/levels.gd")
 const TILE := Vector2(170, 110)
@@ -46,27 +47,113 @@ func _ready() -> void:
 	head.add_child(total)
 	root.add_child(head)
 
-	for t in Levels.THEMES.size():
-		var th: Dictionary = Levels.THEMES[t]
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 14)
-		var name_lbl := Label.new()
-		name_lbl.text = th["name"]
-		name_lbl.custom_minimum_size = Vector2(240, TILE.y)
-		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		name_lbl.add_theme_font_size_override("font_size", 36)
-		var theme_open: bool = Globals.max_level > t * 5
-		name_lbl.add_theme_color_override("font_color", th["wall"].lightened(0.5) if theme_open else Color(Globals.C_WHITE, 0.2))
-		row.add_child(name_lbl)
-		for k in 5:
-			row.add_child(make_tile(t * 5 + k + 1, th))
-		root.add_child(row)
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 40)
+	root.add_child(body)
+	world_list = VBoxContainer.new()
+	world_list.add_theme_constant_override("separation", 6)
+	body.add_child(world_list)
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 18)
+	body.add_child(right)
+	world_title = Label.new()
+	world_title.add_theme_font_size_override("font_size", 44)
+	right.add_child(world_title)
+	world_info = Label.new()
+	world_info.add_theme_font_size_override("font_size", 24)
+	world_info.add_theme_color_override("font_color", Color(Globals.C_WHITE, 0.6))
+	right.add_child(world_info)
+	tile_grid = GridContainer.new()
+	tile_grid.columns = 5
+	tile_grid.add_theme_constant_override("h_separation", 14)
+	tile_grid.add_theme_constant_override("v_separation", 14)
+	right.add_child(tile_grid)
+
+	var group := ButtonGroup.new()
+	for w in Levels.WORLDS:
+		world_list.add_child(make_world_button(w, group))
+	var current_world: int = min(Globals.max_level, Levels.COUNT) - 1
+	show_world(current_world / Levels.STAGES)
 
 	await get_tree().process_frame
 	root.position = (size - root.size) / 2.0
 	Audio.play_music(Audio.MENU_MUSIC)
 	Audio.wire_buttons(self)
 	Fx.juice_buttons(self)
+
+var world_list: VBoxContainer
+var world_title: Label
+var world_info: Label
+var tile_grid: GridContainer
+var world_buttons: Array[Button] = []
+
+func world_open(w: int) -> bool:
+	return Globals.max_level > w * Levels.STAGES
+
+func world_stars(w: int) -> int:
+	var n := 0
+	for i in Levels.STAGES: n += Globals.get_stars(w * Levels.STAGES + i + 1)
+	return n
+
+func make_world_button(w: int, group: ButtonGroup) -> Button:
+	var first := w * Levels.STAGES + 1
+	var th: Dictionary = Levels.theme_of(first)
+	var open := world_open(w)
+	var b := Button.new()
+	b.toggle_mode = true
+	b.button_group = group
+	b.custom_minimum_size = Vector2(380, 62)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.add_theme_font_size_override("font_size", 24)
+	b.text = "%2d  %s" % [w + 1, Levels.world_name(w)]
+	for state in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
+		var sb := StyleBoxFlat.new()
+		var base: Color = th["wall"] if open else Color(Globals.C_FIELD, 0.5)
+		sb.bg_color = {"pressed": base.lightened(0.25), "hover_pressed": base.lightened(0.3),
+			"hover": base.lightened(0.1)}.get(state, base)
+		sb.set_corner_radius_all(14)
+		sb.content_margin_left = 18
+		b.add_theme_stylebox_override(state, sb)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color", "font_disabled_color"]:
+		b.add_theme_color_override(c, Globals.C_WHITE if open else Color(Globals.C_WHITE, 0.3))
+	if open:
+		# star count on the right edge of the button
+		var st := Label.new()
+		st.text = "%d/%d" % [world_stars(w), Levels.STAGES * 3]
+		st.add_theme_font_size_override("font_size", 20)
+		st.add_theme_color_override("font_color", Globals.C_AMBER)
+		st.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+		st.position.x -= 70
+		st.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(st)
+	else:
+		var lock := TextureRect.new()
+		lock.texture = lock_tex()
+		lock.modulate = Color(Globals.C_WHITE, 0.3)
+		lock.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+		lock.position += Vector2(-56, -22)
+		lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		b.add_child(lock)
+	b.disabled = not open
+	b.pressed.connect(show_world.bind(w))
+	world_buttons.append(b)
+	return b
+
+func show_world(w: int) -> void:
+	world_buttons[w].button_pressed = true
+	var first := w * Levels.STAGES + 1
+	var th: Dictionary = Levels.theme_of(first)
+	world_title.text = "WORLD %d  -  %s" % [w + 1, Levels.world_name(w)]
+	world_title.add_theme_color_override("font_color", th["wall"].lightened(0.55))
+	var cleared := 0
+	for i in Levels.STAGES:
+		if first + i < Globals.max_level: cleared += 1
+	world_info.text = "%d / %d CLEARED      %d / %d STARS      STAGE 10: BOSS" % [cleared, Levels.STAGES, world_stars(w), Levels.STAGES * 3]
+	for c in tile_grid.get_children(): c.queue_free()
+	for i in Levels.STAGES:
+		tile_grid.add_child(make_tile(first + i, th))
+	Audio.wire_buttons(tile_grid)
+	Fx.juice_buttons(tile_grid)
 
 func make_tile(level: int, th: Dictionary) -> Button:
 	var b := Button.new()
@@ -94,6 +181,7 @@ func make_tile(level: int, th: Dictionary) -> Button:
 	var sub := ""
 	if current: sub = "BOSS" if is_boss else "PLAY"
 	elif not cleared and is_boss: sub = "BOSS"
+	if Levels.is_final(level) and not cleared: sub = "FINAL"
 	b.text = str(level) + ("\n" + sub if sub != "" else "")
 	b.add_theme_font_size_override("font_size", 30 if sub != "" else 36)
 	if cleared:
@@ -140,8 +228,8 @@ var selected := 0
 func select(level: int) -> void:
 	selected = level
 	if dialog: dialog.queue_free()
-	var t: int = (level - 1) / 5
-	var th: Dictionary = Levels.THEMES[t]
+	var t: int = Levels.theme_index(level)
+	var th: Dictionary = Levels.theme_of(level)
 	var layout := Levels.build(level)
 	var moving := {"orbit": 0, "move": 0, "spin": 0, "blink": 0}
 	for item in layout:
@@ -171,9 +259,9 @@ func select(level: int) -> void:
 	v.add_theme_constant_override("separation", 16)
 	card.add_child(v)
 
-	_label(v, th["name"] + "  -  QUEST %d" % level, 52, Globals.C_AMBER)
-	_label(v, "Stage %d of 5" % ((level - 1) % 5 + 1), 28, th["wall"].lightened(0.5))
-	var tip := _label(v, THEME_TIPS[t], 28, Globals.C_WHITE)
+	_label(v, ("FINAL QUEST" if Levels.is_final(level) else th["name"] + "  -  QUEST %d" % level), 52, Globals.C_AMBER)
+	_label(v, "World %d  -  Stage %d of %d" % [Levels.world_of(level) + 1, Levels.stage_of(level) + 1, Levels.STAGES], 28, th["wall"].lightened(0.5))
+	var tip := _label(v, "The Architect. Every form you have fought, at once." if Levels.is_final(level) else THEME_TIPS[t], 28, Globals.C_WHITE)
 	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 	var stats := GridContainer.new()

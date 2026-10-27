@@ -3,7 +3,7 @@ extends Node2D
 ## low contrast so bricks always read on top. Also draws the glowing inner edge
 ## of the arena (top + both side walls) and flashes it where the ball hits.
 
-var FIELD := Rect2(5, 27, 1356, 1100)
+var FIELD := Rect2(683.0 - 970.0, 27, 1940, 1100)  # widest arena (Levels.FULL_HALF_WIDTH)
 ## Menu mode: covers the whole screen and skips the arena edge.
 var full_screen := false
 

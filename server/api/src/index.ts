@@ -11,7 +11,7 @@ export interface Env {
   STORE_PUBLIC_URL?: string;
 }
 
-const LEVEL_COUNT = 30;
+const LEVEL_COUNT = 120;
 const MIN_TIME_MS = 2_000;        // nobody clears a level faster than this
 const FLAG_TIME_MS = 4_000;       // suspiciously fast: kept but hidden from boards
 const CLOCK_SLACK_MS = 3_000;     // network + timer drift allowed vs. server clock
