@@ -70,8 +70,11 @@ func combo_pitch(combo: int) -> float:
 	var step: int = SCALE[clamp(combo - 1, 0, SCALE.size() - 1)]
 	return pow(2.0, step / 12.0)
 
-## Hook UI sounds onto every button under `root`.
+## Hook UI sounds onto every button under `root`. Safe to call again on a
+## subtree that was already wired (each button is wired once).
 func wire_buttons(root: Node) -> void:
 	for b in root.find_children("*", "BaseButton", true, false):
+		if b.has_meta("audio_wired"): continue
+		b.set_meta("audio_wired", true)
 		b.focus_entered.connect(sfx.bind("ui_focus", -10.0))
 		b.pressed.connect(sfx.bind("ui_press", -4.0))

@@ -90,6 +90,8 @@ static func punch(node: Node, amount := 0.25, time := 0.25) -> void:
 ## Hover / focus grow for every button under root.
 static func juice_buttons(root: Node) -> void:
 	for b in root.find_children("*", "BaseButton", true, false):
+		if b.has_meta("juiced"): continue  # already juiced by an earlier call
+		b.set_meta("juiced", true)
 		var grow := func(on: bool):
 			b.pivot_offset = b.size / 2.0
 			b.create_tween().tween_property(b, "scale", Vector2.ONE * (1.06 if on else 1.0), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

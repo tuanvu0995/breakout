@@ -70,13 +70,32 @@ func level_ball_speed() -> float:
 	# ponytail: linear 8%/level ramp, swap for a curve if late levels feel unfair
 	return base_ball_speed * (1.0 + 0.08 * (level - 1))
 
-func set_fast(on: bool) -> void:
-	fast_time = FAST_TIME if on else 0.0
-	var mult := 2.0 if on else 1.0
+## FAST (x2, points x2) and SLOW (x0.6) share one timed speed multiplier;
+## picking one replaces the other.
+const SLOW_TIME := 10.0
+const SLOW_MULT := 0.6
+var speed_mult := 1.0
+
+func set_ball_speed(mult: float, seconds: float) -> void:
+	var ratio := mult / speed_mult
+	speed_mult = mult
+	fast_time = seconds
 	for b in balls:
 		b.speed = level_ball_speed() * mult
-		b.max_speed = base_ball_max_speed * mult
-		if on: b.velocity *= 2.0
+		b.max_speed = base_ball_max_speed * max(mult, 1.0)
+		b.velocity *= ratio
+
+func set_fast(on: bool) -> void:
+	set_ball_speed(2.0 if on else 1.0, FAST_TIME if on else 0.0)
+
+## BIG pickup: bigger balls that hit twice as hard.
+const BIG_TIME := 12.0
+const BIG_SIZE := 1.8
+var big_time := 0.0
+
+func set_big(on: bool) -> void:
+	big_time = BIG_TIME if on else 0.0
+	for b in balls: b.set_size(BIG_SIZE if on else 1.0)
 
 ## EXPAND / SHRINK pickups move the side walls for a while.
 const ARENA_TIME := 12.0
@@ -103,7 +122,7 @@ func keep_inside_arena() -> void:
 	paddle.position.x = clamp(paddle.position.x, left + pad, right - pad)
 	for b in balls:
 		if b == paddle.ball_attached: continue
-		var r := 20.0
+		var r: float = b.base_radius * b.size_mult + 4.0
 		if b.global_position.x < left + r:
 			b.global_position.x = left + r
 			b.velocity.x = abs(b.velocity.x)
@@ -120,6 +139,12 @@ var balls: Array = []
 
 func _wire_ball(b: Node) -> void:
 	b.hit_block.connect(_on_ball_hit_block)  # energy + touch score per ball hit
+	# Balls never collide with each other: split balls spawn on top of their
+	# source and would otherwise shove each other in place forever.
+	for other in balls:
+		if other != b and is_instance_valid(other):
+			b.add_collision_exception_with(other)
+			other.add_collision_exception_with(b)
 
 ## Every ball in play splits into three (fanned out), up to MAX_BALLS.
 func split_balls() -> void:
@@ -132,6 +157,7 @@ func split_balls() -> void:
 			b.global_position = src.global_position
 			b.speed = src.speed
 			b.max_speed = src.max_speed
+			b.set_size(src.size_mult)
 			b.attached_to = null
 			var v: Vector2 = src.velocity if src.velocity.length() > 10.0 else Vector2.UP * src.speed
 			b.velocity = v.rotated(angle)
@@ -166,7 +192,12 @@ func _process(delta) -> void:
 		fast_time -= delta
 		if fast_time <= 0.0:
 			set_fast(false)
-			flash_text("FAST OVER")
+			flash_text("SPEED NORMAL")
+	if big_time > 0.0:
+		big_time -= delta
+		if big_time <= 0.0:
+			set_big(false)
+			flash_text("BALL NORMAL")
 	if not started: return
 	time += delta
 	
@@ -178,6 +209,7 @@ func layout_bricks() -> void:
 	$Wall/Polygon2D.color = theme["wall"]
 	backdrop.set_theme(Levels.theme_index(level), theme["field"], theme["wall"])
 	frame_decor.set_color(theme["wall"], Levels.theme_index(level))
+	water.set_theme(theme["wall"])
 	Audio.play_theme_music(Levels.theme_index(level))
 	Audio.sfx("level_start", -6.0)
 	if Globals.custom_level.is_empty() and level <= Levels.COUNT:
@@ -185,6 +217,9 @@ func layout_bricks() -> void:
 	var layout: Array = Globals.custom_level if not Globals.custom_level.is_empty() else Levels.build(level)
 	lives_lost = 0
 	final_phase = 0
+	# every level starts at its own ramped ball speed, normal size
+	set_ball_speed(1.0, 0.0)
+	set_big(false)
 	boss = null
 	boss_attack = 3.0
 	level_half_width = Levels.half_width(level, layout)
@@ -293,6 +328,8 @@ func hide_combo() -> void:
 	pass
 
 const Backdrop = preload("res://scenes/effects/backdrop.gd")
+const WaterFx = preload("res://scenes/effects/water.gd")
+var water: Node2D
 const WallDecor = preload("res://scenes/effects/wall_decor.gd")
 var backdrop: Node2D
 var frame_decor: Node2D
@@ -302,6 +339,10 @@ func apply_flat_style() -> void:
 	$Pattern.color = Globals.C_FIELD
 	$Wall/Polygon2D.texture = null
 	$Wall/Polygon2D.color = Globals.C_WALL
+	$DeathArea/Water.visible = false  # replaced by the flat animated water below
+	$DeathArea/Water.process_mode = Node.PROCESS_MODE_DISABLED
+	water = WaterFx.new()
+	add_child(water)
 	backdrop = Backdrop.new()
 	backdrop.add_to_group("backdrop")
 	add_child(backdrop)
@@ -380,6 +421,7 @@ func next_level() -> void:
 	var unlocked := Globals.reach_level(level)
 	time = 0.0
 	set_fast(false)
+	set_big(false)
 	health = min(health + 1, 3)
 	health_bar.set_health(health)
 	clear_drops()
@@ -638,9 +680,12 @@ func on_powerup_collected(kind: int) -> void:
 			health_bar.set_health(health)
 			flash_text("+1 LIFE")
 		PowerUp.KIND.SLOW:
-			if fast_time > 0.0: set_fast(false)
-			for b in balls: b.velocity *= 0.6
-			flash_text("SLOW")
+			set_ball_speed(SLOW_MULT, SLOW_TIME)
+			flash_text("SLOW BALL  %ds" % int(SLOW_TIME))
+		PowerUp.KIND.BIG:
+			set_big(true)
+			flash_text("BIG BALL  x2 DAMAGE")
+			Globals.camera.shake(0.3, 14, 10)
 		PowerUp.KIND.MULTI:
 			split_balls()
 			flash_text("MULTIBALL x%d" % balls.size())
@@ -747,7 +792,7 @@ func on_brick_destroyed(which) -> void:
 	show_combo(combo)
 	combo_timer.start()
 	Audio.sfx("brick_break", -3.0, 0.02, Audio.combo_pitch(combo))  # rises with the combo
-	var pts: int = score_brick_destroyed * combo * (2 if fast_time > 0.0 else 1)
+	var pts: int = score_brick_destroyed * combo * (2 if speed_mult > 1.0 else 1)
 	score += pts
 	var hot: Color = [Globals.C_WHITE, Globals.C_AMBER, Globals.C_CORAL, Globals.C_VIOLET][min(combo / 4, 3)]
 	Fx.popup(self, which.global_position, "+%d" % pts, hot, 30 + min(combo, 10) * 2)
@@ -768,7 +813,7 @@ func _on_ball_hit_block(block) -> void:
 	combo += 1
 	show_combo(combo)
 	combo_timer.start()
-	score += score_brick_touched * combo * (2 if fast_time > 0.0 else 1)
+	score += score_brick_touched * combo * (2 if speed_mult > 1.0 else 1)
 	Globals.stats["score"] = score
 	score_ui.set_score(score)
 
@@ -778,6 +823,7 @@ func on_energy_brick_destroyed() -> void:
 func _on_DeathArea_body_entered(body: Node) -> void:
 	if not body.is_in_group("Ball") or paddle.game_over: return
 	if body == paddle.ball_attached or not balls.has(body): return  # already handled
+	water.splash(body.global_position.x, 1.0 + (body.size_mult - 1.0))
 	if balls.size() > 1:
 		# one of several balls fell: no life lost, promote another as the main ball
 		balls.erase(body)

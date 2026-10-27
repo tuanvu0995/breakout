@@ -44,6 +44,19 @@ var hitstop_bomb = 10
 @onready var sprite = $Sprite
 @onready var animationPlayer = $AnimationPlayer
 @onready var sprite_base_scale: Vector2 = sprite.scale
+@onready var base_radius: float = $CollisionShape.shape.radius
+@onready var base_trail_width: float = $Trail.width
+var size_mult := 1.0
+
+## BIG pickup: scale the ball (collision, sprite, trail). Big balls hit twice as hard.
+func set_size(mult: float) -> void:
+	if not is_inside_tree(): await ready
+	if mult == size_mult: return
+	size_mult = mult
+	$CollisionShape.shape = $CollisionShape.shape.duplicate()  # shared resource otherwise
+	$CollisionShape.shape.radius = base_radius * mult
+	create_tween().tween_property(sprite, "scale", sprite_base_scale * mult, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	$Trail.width = base_trail_width * mult
 
 func _ready() -> void:
 	randomize()
@@ -237,7 +250,7 @@ func _physics_process(delta: float) -> void:
 	if collision.get_collider().is_in_group("Bricks"):
 		if repeat_hits <= 1: start_hitstop(hitstop_block)  # no freeze while escaping an overlap
 		spawn_bounce_particles(collision.get_position(), normal)
-		collision.get_collider().damage(1)
+		collision.get_collider().damage(2.0 if size_mult > 1.0 else 1.0)
 		emit_signal("hit_block", collision.get_collider())
 		
 ### VISUALS ###

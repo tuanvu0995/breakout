@@ -1,7 +1,7 @@
 extends Area2D
 ## Falling pickup dropped by bricks. Caught by the paddle.
 
-enum KIND { GUN, WIDE, LIFE, SLOW, FAST, BARRIER, EXPAND, SHRINK, MULTI }
+enum KIND { GUN, WIDE, LIFE, SLOW, FAST, BARRIER, EXPAND, SHRINK, MULTI, BIG }
 const INFO := {
 	KIND.GUN: ["G", Globals.C_AMBER],
 	KIND.WIDE: ["W", Globals.C_CYAN],
@@ -12,6 +12,7 @@ const INFO := {
 	KIND.EXPAND: ["<>", Globals.C_GREEN],
 	KIND.SHRINK: ["><", Globals.C_CORAL],
 	KIND.MULTI: ["x3", Globals.C_VIOLET],
+	KIND.BIG: ["B", Color("ff9de2")],
 }
 const FALL_SPEED := 220.0
 
@@ -21,7 +22,8 @@ signal collected(kind: int)
 static func random_kind() -> int:
 	var r := randf()
 	if r < 0.08: return KIND.MULTI
-	if r < 0.32: return KIND.GUN
+	if r < 0.14: return KIND.BIG
+	if r < 0.34: return KIND.GUN
 	if r < 0.47: return KIND.WIDE
 	if r < 0.55: return KIND.SLOW
 	if r < 0.65: return KIND.FAST
