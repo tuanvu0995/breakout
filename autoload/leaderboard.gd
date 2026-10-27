@@ -1,5 +1,5 @@
 extends Node
-## Online leaderboard client (breakout-api Cloudflare Worker).
+## Online leaderboard client (bs-api Cloudflare Worker).
 ## Guest account is created on first use. Clear times go through an offline queue,
 ## so a run finished without network is sent next time the game is online.
 

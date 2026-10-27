@@ -195,7 +195,18 @@ func reach_level(level: int) -> Dictionary:
 		if sk.has("unlock") and sk["unlock"] > before and sk["unlock"] <= level: return sk
 	return {}
 
+## The user data folder follows the app name; carry saves over from the old
+## "Breakout" folder once, so renaming the game doesn't wipe progress.
+func migrate_old_saves() -> void:
+	if FileAccess.file_exists(SAVE_PATH): return
+	var old := OS.get_data_dir().path_join("Godot/app_userdata/Breakout")
+	if not DirAccess.dir_exists_absolute(old): return
+	for f in ["save.cfg", "custom_levels.json", "lb_auth.json", "lb_queue.json"]:
+		if FileAccess.file_exists(old.path_join(f)):
+			DirAccess.copy_absolute(old.path_join(f), "user://".path_join(f))
+
 func _ready() -> void:
+	migrate_old_saves()
 	apply_ui_theme()
 	var cfg := ConfigFile.new()
 	if cfg.load(SAVE_PATH) == OK:

@@ -4,7 +4,7 @@ extends Node
 ## - A patch is a Godot patch .pck built against one shipped base version.
 ## - Downloaded patches apply on the NEXT launch (never hot-swapped).
 ## - Only one patch is kept: each patch is a full delta from the base build.
-## Manifest comes from breakout-api: GET <api_url>/ota/manifest.
+## Manifest comes from bs-api: GET <api_url>/ota/manifest.
 
 signal update_ready(patch_version: String)       ## staged, applies on restart
 signal full_update_available(url: String)        ## engine change: needs store update
@@ -28,7 +28,6 @@ static func platform() -> String:
 		"Linux", "FreeBSD": return "linux"
 		"Android": return "android"
 		"iOS": return ""  # App Store forbids downloaded code: no OTA on iOS
-		"Web": return "web"
 	return ""
 
 func _api_url() -> String:
@@ -197,8 +196,5 @@ func _close() -> void:
 	_overlay = null
 
 func restart() -> void:
-	if OS.has_feature("web"):
-		JavaScriptBridge.eval("location.reload()")
-		return
 	OS.set_restart_on_exit(true)
 	get_tree().quit()

@@ -1,14 +1,13 @@
 {
-  "name": "breakout-api",
+  "name": "bs-api",
   "main": "src/index.ts",
   "compatibility_date": "2025-09-01",
   "observability": { "enabled": true },
-  // Add a custom domain after the first deploy, e.g.
-  // "routes": [{ "pattern": "breakout-api.example.com", "custom_domain": true }],
+  "routes": [{ "pattern": "bs-api.pixalab.co", "custom_domain": true }],
   "d1_databases": [
-    { "binding": "DB", "database_name": "breakout-db", "database_id": "REPLACE_WITH_D1_ID", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "bs-db", "database_id": "REPLACE_WITH_D1_ID", "migrations_dir": "migrations" }
   ],
-  "r2_buckets": [{ "binding": "STORE", "bucket_name": "breakout-store" }],
+  "r2_buckets": [{ "binding": "STORE", "bucket_name": "bs-store" }],
   "vars": {
     "ALLOWED_BUILD_MIN": "0.0.0",
     "SESSION_TTL_DAYS": "365",

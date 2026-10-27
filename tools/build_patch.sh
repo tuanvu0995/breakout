@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OTA patches for Breakout (client: autoload/ota.gd, server: server/api/src/index.ts).
+# OTA patches for Brickstellar (client: autoload/ota.gd, server: server/api/src/index.ts).
 # Same workflow as drivedrive's tools/build/build_patch.sh.
 #
 #   tools/build_patch.sh snapshot             # save the shipped build's PCK as the patch baseline.
@@ -13,15 +13,15 @@
 # Patch numbers must keep going up and never be reused. config/version stays the base version
 # (bumping it means a new full build + a new snapshot).
 #
-# Env: ADMIN_TOKEN (to upload), API (the worker, e.g. https://breakout-api.example.com/v1),
-#      PLATFORMS (default "macos web"; any of windows macos linux android web), FULL_DOWNLOAD_URL (optional),
+# Env: ADMIN_TOKEN (to upload), API (the worker, default: api_url in project.godot = https://bs-api.pixalab.co/v1),
+#      PLATFORMS (default "macos"; any of windows macos linux android), FULL_DOWNLOAD_URL (optional),
 #      GODOT=/path/to/godot. If .script_encryption_key exists, PCKs are encrypted with it.
 # Written for macOS's stock bash 3.2.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 api="${API:-$(sed -n 's/^api_url="\(.*\)"$/\1/p' "$root/project.godot")}"
-platforms="${PLATFORMS:-macos web}"
+platforms="${PLATFORMS:-macos}"
 godot="${GODOT:-$(command -v godot || echo /Applications/Godot.app/Contents/MacOS/Godot)}"
 mode="${1:?usage: build_patch.sh snapshot | <patch_version> [--upload] | announce --upload | revoke <version>}"
 
@@ -36,13 +36,12 @@ preset_for() {   # must match export_presets.cfg names
 		macos) echo "macOS" ;;
 		linux) echo "Linux" ;;
 		android) echo "Android" ;;
-		web) echo "Web" ;;
 		*) echo "unknown platform $1" >&2; exit 1 ;;
 	esac
 }
 
 need_api() { [ -n "$api" ] || { echo "set API or breakout/api_url in project.godot" >&2; exit 1; }; }
-need_token() { need_api; [ -n "${ADMIN_TOKEN:-}" ] || { echo "set ADMIN_TOKEN (the breakout-api admin secret)" >&2; exit 1; }; }
+need_token() { need_api; [ -n "${ADMIN_TOKEN:-}" ] || { echo "set ADMIN_TOKEN (the bs-api admin secret)" >&2; exit 1; }; }
 
 put_manifest() {   # $1 = JSON body
 	need_token

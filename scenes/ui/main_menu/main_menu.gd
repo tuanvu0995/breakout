@@ -18,9 +18,9 @@ func _ready():
 		b.add_theme_font_size_override("font_size", 48)
 		b.custom_minimum_size.x = 460
 	var title := Label.new()
-	title.text = "BREAKOUT"  # ponytail: placeholder name
+	title.text = "BRICKSTELLAR"
 	title.add_theme_font_override("font", load("res://assets/font/Kenney Blocks.ttf"))
-	title.add_theme_font_size_override("font_size", 140)
+	title.add_theme_font_size_override("font_size", 118)
 	title.add_theme_color_override("font_color", Globals.C_AMBER)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var best := Label.new()
@@ -42,8 +42,6 @@ func _ready():
 	$MarginContainer/VBoxContainer.add_child(volume_slider)
 	$MarginContainer/VBoxContainer.move_child(volume_slider, $MarginContainer/VBoxContainer/Options.get_index() + 1)
 
-	# Browsers can't quit the game
-	$MarginContainer/VBoxContainer/Quit.visible = not OS.has_feature("web")
 	var create := Button.new()
 	create.text = "CREATE"
 	create.add_theme_font_size_override("font_size", 48)

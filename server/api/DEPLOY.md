@@ -1,4 +1,4 @@
-# breakout-api: deploy
+# bs-api (Brickstellar): deploy
 
 Cloudflare Worker + D1 (accounts, leaderboards) + R2 (OTA patches).
 Same setup as drivedrive's `dd-api`.
@@ -9,26 +9,26 @@ Same setup as drivedrive's `dd-api`.
 cd server/api
 npm install
 npx wrangler login
-npx wrangler d1 create breakout-db          # copy the database_id into wrangler.jsonc
-npx wrangler r2 bucket create breakout-store
+npx wrangler d1 create bs-db          # copy the database_id into wrangler.jsonc
+npx wrangler r2 bucket create bs-store
 openssl rand -hex 32                        # keep it: this is ADMIN_TOKEN
 npx wrangler secret put ADMIN_TOKEN
 npm run migrate:remote
 npm run deploy
-curl https://breakout-api.<your-subdomain>.workers.dev/v1/health
+curl https://bs-api.pixalab.co/v1/health   # custom domain (pixalab.co zone must be on this account)
 ```
 
-Then set the URL in the game, `project.godot`:
+The game already points at it in `project.godot`:
 
 ```ini
 [breakout]
-api_url="https://breakout-api.<your-subdomain>.workers.dev/v1"
+api_url="https://bs-api.pixalab.co/v1"
 ```
 
 Empty `api_url` = the game runs fully offline (no leaderboard, no OTA).
 
-Optional: a custom domain (add `routes` in `wrangler.jsonc`), and a public R2 domain
-for patch downloads (set `STORE_PUBLIC_URL`, e.g. `https://breakout-store.example.com`).
+Optional: a public R2 domain
+for patch downloads (set `STORE_PUBLIC_URL`, e.g. `https://bs-store.pixalab.co`).
 
 ## Local dev
 
@@ -65,10 +65,10 @@ Patches are Godot patch PCKs against the shipped build (`tools/build_patch.sh`).
 
 ```bash
 # once, on the exact commit you released:
-PLATFORMS="macos web android" tools/build_patch.sh snapshot
+PLATFORMS="macos android" tools/build_patch.sh snapshot
 
 # later, for a content/script fix (config/version stays the same):
-API=https://.../v1 ADMIN_TOKEN=... PLATFORMS="macos web android" tools/build_patch.sh 0.1.1 --upload
+API=https://bs-api.pixalab.co/v1 ADMIN_TOKEN=... PLATFORMS="macos android" tools/build_patch.sh 0.1.1 --upload
 
 # pull a bad patch / announce a new store build
 tools/build_patch.sh revoke 0.1.1
@@ -76,6 +76,6 @@ FULL_DOWNLOAD_URL=https://... tools/build_patch.sh announce --upload
 ```
 
 The game checks for a patch on the main menu, downloads it, verifies its SHA-256 and
-applies it on the next launch (web: page reload).
+applies it on the next launch.
 A patch can't change the engine version or native code - that needs a new full build.
 iOS: App Store rules forbid downloading new code; don't ship OTA patches to iOS.

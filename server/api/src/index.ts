@@ -1,4 +1,4 @@
-// Breakout API: guest accounts, per-level clear-time leaderboards, OTA patch hosting.
+// Brickstellar API (bs-api): guest accounts, per-level clear-time leaderboards, OTA patch hosting.
 // Plain fetch handler, no framework. Same shape as drivedrive's dd-api, trimmed down.
 
 export interface Env {
@@ -16,7 +16,7 @@ const MIN_TIME_MS = 2_000;        // nobody clears a level faster than this
 const FLAG_TIME_MS = 4_000;       // suspiciously fast: kept but hidden from boards
 const CLOCK_SLACK_MS = 3_000;     // network + timer drift allowed vs. server clock
 const NONCE_TTL_S = 2 * 60 * 60;  // a level attempt can last up to 2 hours
-const OTA_FILE_RE = /^patch-\d+\.\d+\.\d+-(windows|macos|linux|android|ios|web)\.pck$/;
+const OTA_FILE_RE = /^patch-\d+\.\d+\.\d+-(windows|macos|linux|android)\.pck$/;
 const OTA_MAX_BYTES = 95 * 1024 * 1024;
 
 // ---------------------------------------------------------------- helpers
@@ -327,7 +327,7 @@ async function adminBan(req: Request, env: Env, id: string) {
 type Route = [method: string, pattern: RegExp, fn: (req: Request, env: Env, m: RegExpMatchArray, url: URL) => Promise<Response>];
 
 const ROUTES: Route[] = [
-  ["GET", /^\/v1\/health$/, async () => json({ ok: true, service: "breakout-api", api: "1" })],
+  ["GET", /^\/v1\/health$/, async () => json({ ok: true, service: "bs-api", api: "1" })],
   ["POST", /^\/v1\/auth\/guest$/, (r, e) => guest(r, e)],
   ["GET", /^\/v1\/me$/, async (r, e) => json({ account: await auth(r, e) })],
   ["PATCH", /^\/v1\/me$/, (r, e) => patchMe(r, e)],

@@ -1,12 +1,12 @@
 {
-  "name": "breakout-api",
+  "name": "bs-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --local",
-    "migrate:local": "wrangler d1 migrations apply breakout-db --local",
-    "migrate:remote": "wrangler d1 migrations apply breakout-db --remote",
+    "migrate:local": "wrangler d1 migrations apply bs-db --local",
+    "migrate:remote": "wrangler d1 migrations apply bs-db --remote",
     "deploy": "wrangler deploy",
     "typecheck": "tsc"
   },

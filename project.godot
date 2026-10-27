@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/version="0.1.0"
-config/name="Breakout"
+config/name="Brickstellar"
 run/main_scene="res://scenes/ui/main_menu/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
@@ -74,9 +74,8 @@ special={
 [rendering]
 
 renderer/rendering_method="mobile"
-renderer/rendering_method.web="gl_compatibility"
 
 [breakout]
 
 ; Set to your deployed worker, e.g. "https://breakout-api.example.com/v1". Empty = offline.
-api_url=""
+api_url="https://bs-api.pixalab.co/v1"
