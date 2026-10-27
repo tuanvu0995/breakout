@@ -4,8 +4,11 @@ var health: int = 3
 @onready var h_box: HBoxContainer = $HBoxContainer
 
 func _ready() -> void:
+	position = Vector2(40, 30)
+	h_box.scale = Vector2.ONE
+	h_box.add_theme_constant_override("separation", 14)
 	for c in h_box.get_children():
-		c.texture = Globals.circle_tex(28)
+		c.texture = Globals.circle_tex(40)
 		c.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 	set_health(health)
 

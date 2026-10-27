@@ -9,6 +9,8 @@ var splash := 0.0     # radius of area damage on hit
 var size := Vector2(6, 18)
 var round_shape := false
 var hit_bricks := {}
+## Ball hits do 1 damage; bullets only chip bricks so the ball stays the main tool.
+const DAMAGE := 0.25
 
 func setup(w: Dictionary, dir: Vector2) -> void:
 	velocity = dir * w["speed"]
@@ -73,7 +75,7 @@ func _on_body_entered(body: Node) -> void:
 	if body.is_in_group("Bricks"):
 		if hit_bricks.has(body): return
 		hit_bricks[body] = true
-		if not body.isDestroyed: body.damage(1)
+		if not body.isDestroyed: body.damage(DAMAGE)
 		Fx.burst(scene, global_position, color, 6, 260.0, 7.0)
 		if splash > 0.0:
 			explode_area(scene)
@@ -92,4 +94,4 @@ func explode_area(scene: Node) -> void:
 	for b in get_tree().get_nodes_in_group("Bricks"):
 		if b.isDestroyed or hit_bricks.has(b): continue
 		if b.global_position.distance_to(global_position) <= splash:
-			b.damage(1)
+			b.damage(DAMAGE)

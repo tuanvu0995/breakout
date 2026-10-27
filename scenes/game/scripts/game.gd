@@ -31,6 +31,10 @@ var time: float = 0
 var started: bool = false
 var level: int = 1
 var base_ball_speed: float
+var base_ball_max_speed: float
+## FAST pickup: ball x2 speed and x2 points while it lasts.
+const FAST_TIME := 10.0
+var fast_time := 0.0
 const PowerUp = preload("res://scenes/powerup/powerup.gd")
 const POWERUP_CHANCE := 0.18
 
@@ -50,8 +54,10 @@ func _ready():
 		brick.energy_brick_destroyed.connect(on_energy_brick_destroyed)
 		
 	level = Globals.start_level
+	paddle.start.connect(_on_paddle_start)  # starts the clear timer on launch
 	apply_flat_style()
 	base_ball_speed = ball.speed
+	base_ball_max_speed = ball.max_speed
 	add_pause_handler()
 	# Remove for testing with predefined bricks
 	remove_all_bricks()
@@ -59,7 +65,23 @@ func _ready():
 	flash_text("CUSTOM LEVEL" if not Globals.custom_level.is_empty() else Levels.title_of(level))
 
 
+func level_ball_speed() -> float:
+	# ponytail: linear 8%/level ramp, swap for a curve if late levels feel unfair
+	return base_ball_speed * (1.0 + 0.08 * (level - 1))
+
+func set_fast(on: bool) -> void:
+	fast_time = FAST_TIME if on else 0.0
+	var mult := 2.0 if on else 1.0
+	ball.speed = level_ball_speed() * mult
+	ball.max_speed = base_ball_max_speed * mult
+	if on: ball.velocity *= 2.0
+
 func _process(delta) -> void:
+	if fast_time > 0.0:
+		fast_time -= delta
+		if fast_time <= 0.0:
+			set_fast(false)
+			flash_text("FAST OVER")
 	if not started: return
 	time += delta
 	
@@ -157,8 +179,9 @@ func reset_score() -> void:
 	score_ui.set_score(score)
 	
 func show_combo(combo: int) -> void:
-	combo_lbl.text = "COMBO " + str(combo)
+	combo_lbl.text = "COMBO x%d" % combo
 	combo_lbl.visible = true
+	place_combo()
 	combo_lbl.add_theme_color_override("font_color", [Globals.C_AMBER, Globals.C_CORAL, Globals.C_VIOLET, Globals.C_CYAN][min(combo / 5, 3)])
 	Fx.punch(combo_lbl, 0.15 + min(combo, 10) * 0.02)
 	pass
@@ -173,6 +196,23 @@ func apply_flat_style() -> void:
 	$Wall/Polygon2D.texture = null
 	$Wall/Polygon2D.color = Globals.C_WALL
 	combo_lbl.add_theme_color_override("font_color", Globals.C_AMBER)
+	# Combo / announcements live in the HUD under the score, on a dark pill,
+	# so they never blend into the bricks behind them.
+	combo_lbl.reparent($CanvasLayer, false)
+	combo_lbl.add_theme_font_size_override("font_size", 40)
+	combo_lbl.add_theme_constant_override("outline_size", 0)
+	var pill := StyleBoxFlat.new()
+	pill.bg_color = Color(Globals.C_DARK, 0.85)
+	pill.set_corner_radius_all(26)
+	pill.content_margin_left = 32; pill.content_margin_right = 32
+	pill.content_margin_top = 6; pill.content_margin_bottom = 6
+	combo_lbl.add_theme_stylebox_override("normal", pill)
+
+## Shrink-wrap the pill to the text and keep it centered under the score.
+func place_combo() -> void:
+	combo_lbl.size = Vector2.ZERO
+	combo_lbl.reset_size()
+	combo_lbl.position = Vector2(960 - combo_lbl.size.x / 2.0, 88)
 
 func next_level() -> void:
 	# Clear bonus: faster clears earn more
@@ -194,8 +234,7 @@ func next_level() -> void:
 	level += 1
 	var unlocked := Globals.reach_level(level)
 	time = 0.0
-	# ponytail: linear 8%/level ramp, swap for a curve if late levels feel unfair
-	ball.speed = base_ball_speed * (1.0 + 0.08 * (level - 1))
+	set_fast(false)
 	health = min(health + 1, 3)
 	health_bar.set_health(health)
 	clear_drops()
@@ -230,8 +269,13 @@ func on_powerup_collected(kind: int) -> void:
 			health_bar.set_health(health)
 			flash_text("+1 LIFE")
 		PowerUp.KIND.SLOW:
+			if fast_time > 0.0: set_fast(false)
 			ball.velocity *= 0.6
 			flash_text("SLOW")
+		PowerUp.KIND.FAST:
+			set_fast(true)
+			flash_text("FAST x2  -  POINTS x2")
+			Globals.camera.shake(0.4, 18, 12)
 	score += 100
 	score_ui.set_score(score)
 
@@ -240,46 +284,52 @@ func clear_drops() -> void:
 		if c is PowerUp: c.queue_free()
 
 ## Esc toggles pause. Handler runs while the tree is paused.
+const PauseMenu = preload("res://scenes/ui/pause/pause_menu.gd")
+
+## Esc / II button / app going to background opens the pause menu.
 func add_pause_handler() -> void:
-	var lbl := Label.new()
-	lbl.text = "PAUSED\nEsc / II: continue   Q: menu"
-	lbl.add_theme_font_size_override("font_size", 48)
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.set_anchors_preset(Control.PRESET_CENTER)
-	lbl.visible = false
-	$CanvasLayer.add_child(lbl)
 	var handler := PauseHandler.new()
-	handler.label = lbl
+	handler.game = self
 	add_child(handler)
 	if DisplayServer.is_touchscreen_available():
 		var btn := Button.new()
 		btn.text = "II"
 		btn.process_mode = Node.PROCESS_MODE_ALWAYS
 		btn.focus_mode = Control.FOCUS_NONE
-		btn.position = Vector2(1780, 60)
-		btn.pressed.connect(handler.toggle)
+		btn.add_theme_font_size_override("font_size", 36)
+		btn.custom_minimum_size = Vector2(80, 70)
+		btn.position = Vector2(1920 - 40 - 380 - 110, 22)
+		btn.pressed.connect(handler.open)
 		$CanvasLayer.add_child(btn)
 
 class PauseHandler extends Node:
-	var label: Label
+	var game: Node
+	var menu: CanvasLayer
 	func _ready() -> void: process_mode = Node.PROCESS_MODE_ALWAYS
-	func toggle() -> void:
-		get_tree().paused = not get_tree().paused
+	func open() -> void:
+		if menu or game.paddle.game_over: return
+		get_tree().paused = true
 		Audio.sfx("pause", -4.0)
-		label.visible = get_tree().paused
+		menu = PauseMenu.new()
+		Globals.start_level = game.level
+		menu.title_text = "CUSTOM LEVEL" if not Globals.custom_level.is_empty() else Levels.title_of(game.level)
+		menu.info_text = "TIME %s    SCORE %d" % [Globals.format_time(game.time), game.score]
+		menu.resumed.connect(func():
+			menu = null
+			get_tree().paused = false)
+		game.add_child(menu)
 	func _notification(what: int) -> void:
 		# Mobile: auto-pause when the app goes to background
-		if what == NOTIFICATION_APPLICATION_FOCUS_OUT and not get_tree().paused and Engine.get_write_movie_path() == "": toggle()
+		if what == NOTIFICATION_APPLICATION_FOCUS_OUT and Engine.get_write_movie_path() == "": open()
 	func _unhandled_input(event: InputEvent) -> void:
-		if event.is_action_pressed("ui_cancel"):
-			toggle()
-		elif get_tree().paused and event is InputEventKey and event.pressed and event.physical_keycode == KEY_Q:
-			get_tree().paused = false
-			get_tree().change_scene_to_file("res://scenes/ui/main_menu/main_menu.tscn")
+		if not menu and event.is_action_pressed("ui_cancel"):
+			get_viewport().set_input_as_handled()
+			open()
 
 func flash_text(text: String) -> void:
 	combo_lbl.text = text
 	combo_lbl.visible = true
+	place_combo()
 	combo_lbl.add_theme_color_override("font_color", Globals.C_AMBER)
 	Fx.punch(combo_lbl, 0.3, 0.4)
 	combo_timer.start()
@@ -304,7 +354,7 @@ func on_brick_destroyed(which) -> void:
 	combo += 1
 	show_combo(combo)
 	combo_timer.start()
-	var pts: int = score_brick_destroyed * combo
+	var pts: int = score_brick_destroyed * combo * (2 if fast_time > 0.0 else 1)
 	score += pts
 	var hot: Color = [Globals.C_WHITE, Globals.C_AMBER, Globals.C_CORAL, Globals.C_VIOLET][min(combo / 4, 3)]
 	Fx.popup(self, which.global_position, "+%d" % pts, hot, 30 + min(combo, 10) * 2)
@@ -325,7 +375,7 @@ func _on_ball_hit_block(block) -> void:
 	combo += 1
 	show_combo(combo)
 	combo_timer.start()
-	score += score_brick_touched * combo
+	score += score_brick_touched * combo * (2 if fast_time > 0.0 else 1)
 	Globals.stats["score"] = score
 	score_ui.set_score(score)
 
@@ -357,7 +407,7 @@ func on_game_over_retry() -> void:
 	reset_score()
 	time = 0.0
 	level = 1
-	ball.speed = base_ball_speed
+	set_fast(false)
 	paddle.add_gun_level(-paddle.MAX_GUN_LEVEL)
 	clear_drops()
 	flash_text(Levels.title_of(1))

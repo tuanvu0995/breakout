@@ -1,20 +1,52 @@
 extends Control
+## Horizontal energy bar, top-right. Pulses "OVERDRIVE READY" when full.
+
+const BAR_SIZE := Vector2(380, 26)
 
 @onready var progress: ProgressBar = $ProgressBar
+var label: Label
+var ready_tween: Tween
 
 func _ready() -> void:
-	progress.value = 0.0
 	$TextureRect.visible = false
+	size = BAR_SIZE + Vector2(0, 40)
+	position = Vector2(1920 - 40 - BAR_SIZE.x, 22)
+	progress.fill_mode = ProgressBar.FILL_BEGIN_TO_END
+	progress.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	progress.position = Vector2(0, 34)
+	progress.size = BAR_SIZE
+	progress.value = 0.0
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(Globals.C_WHITE, 0.1)
-	bg.set_corner_radius_all(8)
+	bg.set_corner_radius_all(13)
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = Globals.C_CYAN
-	fill.set_corner_radius_all(8)
+	fill.set_corner_radius_all(13)
 	progress.add_theme_stylebox_override("background", bg)
 	progress.add_theme_stylebox_override("fill", fill)
+	label = Label.new()
+	label.theme = load("res://theme/main_theme.tres")
+	label.text = "ENERGY"
+	label.size = Vector2(BAR_SIZE.x, 30)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.add_theme_font_size_override("font_size", 22)
+	label.add_theme_color_override("font_color", Color(Globals.C_WHITE, 0.6))
+	add_child(label)
 
 func set_energy(new_value: int) -> void:
-	if new_value >= 100 and progress.value < 100:
-		Fx.punch(self, 0.4, 0.5)  # full: ready for special
+	var was_full := progress.value >= 100
 	progress.value = new_value
+	var full := new_value >= 100
+	if full == was_full: return
+	if ready_tween: ready_tween.kill()
+	if full:
+		Fx.punch(progress, 0.15, 0.5)
+		label.text = "OVERDRIVE READY  -  " + ("2-FINGER TAP" if DisplayServer.is_touchscreen_available() else "PRESS E")
+		label.add_theme_color_override("font_color", Globals.C_AMBER)
+		ready_tween = create_tween().set_loops()
+		ready_tween.tween_property(label, "modulate:a", 0.35, 0.45)
+		ready_tween.tween_property(label, "modulate:a", 1.0, 0.45)
+	else:
+		label.text = "ENERGY"
+		label.modulate.a = 1.0
+		label.add_theme_color_override("font_color", Color(Globals.C_WHITE, 0.6))

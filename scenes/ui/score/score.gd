@@ -5,6 +5,10 @@ extends Control
 func _ready():
 	$TextureRect.visible = false
 	score.add_theme_color_override("font_color", Globals.C_WHITE)
+	score.add_theme_font_size_override("font_size", 46)
+	score.size = Vector2(500, 64)
+	position = Vector2(960 - 250, 14)
+	score.position = Vector2.ZERO
 
 var shown := 0
 

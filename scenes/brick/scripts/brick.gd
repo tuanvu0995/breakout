@@ -43,7 +43,7 @@ var health_dict = {
 	TYPE.ENERGY: 1,    # 0.1
 }
 
-@onready var health: int = health_dict[type]
+@onready var health: float = health_dict[type]
 @onready var explosion_area: Area2D = $ExplosionArea
 @onready var size_sprite: Sprite2D = $Size
 @onready var type_sprite: Sprite2D = $Type
@@ -59,6 +59,7 @@ var t: float = 0.0
 var base_pos: Vector2
 var base_layer: int
 var moving: bool = false
+var shape := ""  # "" = square/long; otherwise a BrickShapes name
 
 func _ready() -> void:
 	if spec.is_empty():
@@ -68,6 +69,8 @@ func _ready() -> void:
 		type = spec.get("type", TYPE.ONE)
 		size = spec.get("size", SIZE.SMALL)
 		t = spec.get("phase", 0.0)
+		shape = spec.get("shape", "")
+		rotation_degrees = spec.get("rot", 0.0)
 		moving = spec.has("spin") or spec.has("move_amp") or spec.has("orbit_radius") or spec.has("blink")
 	base_pos = position
 	base_layer = collision_layer
@@ -129,6 +132,15 @@ func brick_color() -> Color:
 	return Globals.C_CYAN
 
 func update_size_visuals() -> void:
+	if shape != "":
+		$CollisionShapeSmall.disabled = true
+		$CollisionShapeLong.disabled = true
+		add_child(BrickShapes.collider(shape))
+		size_sprite.texture = BrickShapes.texture(shape)
+		# pips sit on the visual center, kept upright and scaled to the shape
+		type_sprite.position = BrickShapes.centroid(shape)
+		type_sprite.scale = Vector2.ONE * (0.75 if shape in ["tri", "wedge", "diamond", "star", "half"] else 0.9)
+		return
 	var small := size == SIZE.SMALL
 	$CollisionShapeSmall.disabled = not small
 	$CollisionShapeLong.disabled = small
@@ -138,9 +150,11 @@ func update_type_visuals() -> void:
 	size_sprite.self_modulate = brick_color()
 	type_sprite.self_modulate = Globals.C_DARK if type == TYPE.EXPLOSIVE else Color(1, 1, 1, 0.9)
 	match type:
-		TYPE.ONE: type_sprite.texture = Globals.pips_tex(1)
-		TYPE.TWO: type_sprite.texture = Globals.pips_tex(2)
-		TYPE.THREE: type_sprite.texture = Globals.pips_tex(3)
+		TYPE.ONE, TYPE.TWO, TYPE.THREE:
+			# dots = ball hits left; the last dot shrinks with partial (bullet) damage
+			var hp := health if is_inside_tree() else float(health_dict[type])
+			var n := int(ceil(hp))
+			type_sprite.texture = Globals.pips_tex(n, hp - (n - 1))
 		TYPE.EXPLOSIVE: type_sprite.texture = Globals.circle_tex(26)
 		TYPE.ENERGY: type_sprite.texture = Globals.diamond_tex()
 		
@@ -161,7 +175,7 @@ func bounce() -> void:
 		.set_ease(Tween.EASE_IN) \
 		.set_trans(Tween.TRANS_CUBIC )
 
-func damage(value: int) -> void:
+func damage(value: float) -> void:
 	health -= value
 	
 	if health <= 0:
@@ -198,7 +212,7 @@ func spawn_bomb_explosion() -> void:
 	Fx.burst(scene, global_position, Globals.C_AMBER, 24, 500.0, 10.0)
 
 func update_type_health() -> void:
-	match health:
+	match int(ceil(health)):
 		3:
 			type = TYPE.THREE
 		2:

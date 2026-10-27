@@ -25,63 +25,6 @@ const THEMES := [
 	{"name": "CHAOS", "field": Color("3a2420"), "wall": Color("6a3a2e")},
 ]
 
-const MAPS := [
-	[ # pyramid
-		"........1........",
-		".......111.......",
-		"......11E11......",
-		".....1122211.....",
-		"....112222211....",
-		"...11122B22111...",
-		"..1111111111111..",
-	],
-	[ # heart
-		".11111...11111.",
-		"1122211.1122211",
-		"112E2211122E211",
-		"111222111222111",
-		".1112221222111.",
-		"..11122B22111..",
-		"...111222111...",
-		"....1112111....",
-		".....11111.....",
-		"......111......",
-	],
-	[ # invader
-		"..2.......2..",
-		"...2.....2...",
-		"..222222222..",
-		".22B22222B22.",
-		"2222222222222",
-		"2.222333222.2",
-		"2.2.......2.2",
-		"...E11.11E...",
-	],
-	[ # rocket
-		"......3......",
-		".....333.....",
-		"....22222....",
-		"....2E1E2....",
-		"....21112....",
-		"....22222....",
-		"...3222223...",
-		"..33.2B2.33..",
-		".3...111...3.",
-		".....1.1.....",
-	],
-	[ # skull
-		"...3333333...",
-		"..333333333..",
-		".33322222333.",
-		".33B..2..B33.",
-		".33B..2..B33.",
-		".33322E22333.",
-		"..333222333..",
-		"...2.2.2.2...",
-		"...2222222...",
-	],
-]
-
 const FULL_HALF_WIDTH := 678.0
 # Target half-width per step inside a theme: wide, then narrower = harder.
 const WIDTH_STEPS := [678.0, 600.0, 560.0, 520.0, 480.0]
@@ -95,6 +38,7 @@ static func half_width(level: int, layout: Array) -> float:
 		if sp.has("orbit_radius"): reach = abs(sp["orbit_center"].x - CX) + sp["orbit_radius"]
 		if sp.has("move_amp"): reach += abs(sp["move_amp"].x)
 		var half_size := 65.0 if sp.get("size", SMALL) == LONG or sp.has("spin") else 32.0
+		if sp.has("shape"): half_size = BrickShapes.extent(sp["shape"]).length()
 		need = max(need, reach + half_size + 50.0)
 	var target: float = WIDTH_STEPS[((level - 1) % COUNT) % 5]
 	return clamp(max(target, need), 300.0, FULL_HALF_WIDTH)
@@ -136,32 +80,122 @@ static func _roll(rng: RandomNumberGenerator, hard: float) -> int:
 static func _add(out: Array, pos: Vector2, spec: Dictionary) -> void:
 	out.append({"pos": pos, "spec": spec})
 
-static func _ring(out: Array, rng, center: Vector2, radius: float, n: int, speed: float, hard: float) -> void:
+static func _ring(out: Array, rng, center: Vector2, radius: float, n: int, speed: float, hard: float, shape := "") -> void:
+	if shape == "": shape = ["circle", "hex", ""][int(radius / 90.0) % 3]
 	for j in n:
 		var a := TAU * j / n
-		_add(out, center + Vector2.from_angle(a) * radius, {
+		var spec := {
 			"type": _roll(rng, hard), "size": SMALL, "face": true,
-			"orbit_center": center, "orbit_radius": radius, "orbit_angle": a, "orbit_speed": speed})
+			"orbit_center": center, "orbit_radius": radius, "orbit_angle": a, "orbit_speed": speed}
+		if shape != "": spec["shape"] = shape
+		_add(out, center + Vector2.from_angle(a) * radius, spec)
 
-static func _tide_row(out: Array, rng, y: float, n: int, amp: float, freq: float, phase: float, hard: float) -> void:
+static func _tide_row(out: Array, rng, y: float, n: int, amp: float, freq: float, phase: float, hard: float, shape := "") -> void:
 	var gap := 140.0
 	for j in n:
-		_add(out, Vector2(CX + (j - (n - 1) / 2.0) * gap, y), {
-			"type": _roll(rng, hard), "size": LONG,
-			"move_amp": Vector2(amp, 0), "move_freq": freq, "phase": phase})
+		var spec := {"type": _roll(rng, hard), "size": LONG,
+			"move_amp": Vector2(amp, 0), "move_freq": freq, "phase": phase}
+		if shape != "": spec["shape"] = shape
+		_add(out, Vector2(CX + (j - (n - 1) / 2.0) * gap, y), spec)
 
 # --- themes --------------------------------------------------------------
 
-## Pixel-art shapes, static. Teaches brick types.
+## Shape brick at (x from center, y). shape "" = classic square.
+static func _s(out: Array, shape: String, x: float, y: float, type: int, rot := 0.0, extra := {}) -> void:
+	var spec := {"type": type, "size": SMALL, "rot": rot}
+	if shape != "": spec["shape"] = shape
+	spec.merge(extra)
+	_add(out, Vector2(CX + x, y), spec)
+
+## Band of alternating up/down triangles: n triangles starting at x0.
+static func _tri_band(out: Array, x0: float, y: float, n: int, type: int) -> void:
+	for i in n:
+		_s(out, "tri", x0 + i * 32.0, y, type, 0.0 if i % 2 == 0 else 180.0)
+
+## Triangle tree: rows of 1, 3, 5... triangles, top at (x, y).
+static func _tree(out: Array, x: float, y: float, rows: int, type: int) -> void:
+	for r in rows:
+		var n := 1 + r * 2
+		_tri_band(out, x - (n - 1) * 16.0, y + r * 54.0, n, type)
+	_s(out, "", x, y + rows * 54.0 + 12, ONE)  # trunk
+
+## Shapes on a circle, each pointing outward.
+static func _burst(out: Array, shape: String, c: Vector2, r: float, n: int, type: int, rot_off := 90.0) -> void:
+	for i in n:
+		var a := TAU * i / n
+		_s(out, shape, c.x + cos(a) * r, c.y + sin(a) * r, type, rad_to_deg(a) + rot_off)
+
+## Pictures built from shaped bricks. Teaches brick types while looking like something.
 static func _blocks(out: Array, k: int) -> void:
-	var rows: Array = MAPS[k]
-	var cols: int = rows[0].length()
-	for r in rows.size():
-		for c in cols:
-			var ch: String = rows[r][c]
-			if ch == ".": continue
-			var type: int = {"1": ONE, "2": TWO, "3": THREE, "B": BOMB, "E": ENERGY}[ch]
-			_add(out, Vector2(CX + (c - (cols - 1) / 2.0) * GRID, 100 + r * GRID), {"type": type, "size": SMALL})
+	match k:
+		0:  # HOUSE & SUN
+			var hx := -120.0
+			for r in 3:
+				for c in 4:
+					var x := hx + (c - 1.5) * 64.0
+					var y := 400.0 + r * 64.0
+					if r == 0 and (c == 0 or c == 3): _s(out, "circle", x, y, ENERGY)  # windows
+					elif r == 2 and (c == 1 or c == 2): continue                     # doorway
+					else: _s(out, "", x, y, ONE)
+			_s(out, "half", hx, 540, TWO)  # arched door
+			for row in 4:  # triangle roof
+				var n := 9 - row * 2
+				_tri_band(out, hx - (n - 1) * 16.0, 336.0 - row * 54.0, n, TWO)
+			_s(out, "circle", 230, 190, THREE)  # sun
+			_burst(out, "tri", Vector2(230, 190), 74, 8, ONE)
+			_s(out, "pill", 300, 340, ONE); _s(out, "pill", 380, 380, ONE)  # clouds
+			_s(out, "", 60, 528, BOMB)  # mailbox (it explodes)
+			for i in 5: _s(out, "bar", -250 + i * 124.0, 600, ONE)  # ground
+		1:  # FISH
+			var c := Vector2(-20, 330)
+			for col in range(-4, 5):
+				for row in range(-3, 4):
+					var x := col * 47.0
+					var y := row * 54.0 + (27.0 if col % 2 != 0 else 0.0)
+					if pow(x / 215.0, 2) + pow(y / 135.0, 2) > 1.0: continue
+					if Vector2(x, y).distance_to(Vector2(140, -30)) < 40: continue  # room for the eye
+					_s(out, "hex", c.x + x, c.y + y, TWO if (row + col) % 3 == 0 else ONE)
+			_s(out, "circle", c.x + 140, c.y - 30, BOMB)  # eye
+			_s(out, "tri", c.x - 250, c.y - 34, TWO, 90)   # tail
+			_s(out, "tri", c.x - 250, c.y + 34, TWO, 90)
+			_s(out, "tri", c.x - 10, c.y - 168, ONE)        # dorsal fin
+			_s(out, "tri", c.x - 10, c.y + 168, ONE, 180)   # belly fin
+			for b in [Vector2(250, 250), Vector2(285, 175), Vector2(260, 100)]:
+				_s(out, "circle", b.x, b.y, ENERGY)  # bubbles
+			_s(out, "bar", -330, 520, ONE, 90); _s(out, "bar", 330, 540, ONE, 90)  # seaweed
+		2:  # ROCKET
+			_s(out, "tri", 0, 120, THREE)
+			_tri_band(out, -32, 176, 3, THREE)
+			for y in [240.0, 368.0, 432.0]:
+				_s(out, "", -32, y, TWO); _s(out, "", 32, y, TWO)
+			_s(out, "circle", 0, 304, ENERGY)  # porthole
+			_s(out, "wedge", -96, 432, TWO); _s(out, "wedge", 96, 432, TWO, 90)  # fins
+			_s(out, "wedge", -96, 368, ONE); _s(out, "wedge", 96, 368, ONE, 90)
+			_s(out, "star", 0, 510, BOMB)  # engine flame
+			_s(out, "diamond", -40, 575, ONE); _s(out, "diamond", 40, 575, ONE); _s(out, "diamond", 0, 610, ONE)
+			for st in [Vector2(-300, 140), Vector2(270, 210), Vector2(-250, 420), Vector2(310, 470), Vector2(-360, 280), Vector2(360, 330)]:
+				_s(out, "star", st.x, st.y, ONE)
+		3:  # PINE FOREST UNDER THE MOON
+			_tree(out, 0, 110, 4, THREE)
+			_tree(out, -300, 230, 3, TWO)
+			_tree(out, 300, 230, 3, TWO)
+			_s(out, "half", 400, 100, THREE, 90)  # moon
+			for st in [Vector2(-200, 100), Vector2(-420, 150), Vector2(200, 150), Vector2(150, 70)]:
+				_s(out, "star", st.x, st.y, ONE)
+			_s(out, "star", -120, 60, BOMB)  # falling star
+			for i in 7: _s(out, "bar", -372 + i * 124.0, 520, ONE)  # snow
+		4:  # FLOWER GARDEN
+			for fx in [-220.0, 220.0]:
+				var fc := Vector2(fx, 230)
+				_s(out, "circle", fc.x, fc.y, THREE)
+				_burst(out, "half", fc, 62, 8, TWO)
+				_s(out, "bar", fc.x, 400, ONE, 90)
+				_s(out, "diamond", fc.x - 44, 420, ONE, -40); _s(out, "diamond", fc.x + 44, 450, ONE, 40)
+			_s(out, "heart", 0, 140, THREE)
+			_s(out, "heart", -60, 300, TWO); _s(out, "heart", 60, 330, TWO)
+			_s(out, "pill", -380, 120, ENERGY); _s(out, "pill", 380, 160, ENERGY)  # bees
+			_s(out, "circle", 0, 470, BOMB)  # ladybug
+			for i in 7: _s(out, "bar", -372 + i * 124.0, 560, ONE)  # grass
 
 ## Rings of bricks orbiting a center.
 static func _orbit(out: Array, k: int, rng) -> void:
@@ -183,7 +217,7 @@ static func _orbit(out: Array, k: int, rng) -> void:
 				_ring(out, rng, cc, 110, 8, 0.6 * side, hard)
 				_ring(out, rng, cc, 210, 13, -0.4 * side, hard)
 		4:
-			for j in 4: _add(out, c + Vector2.from_angle(TAU * j / 4) * 40, {"type": BOMB})
+			for j in 4: _add(out, c + Vector2.from_angle(TAU * j / 4) * 40, {"type": BOMB, "shape": "circle"})
 			_ring(out, rng, c, 130, 9, 0.8, hard)
 			_ring(out, rng, c, 220, 14, -0.6, hard)
 			_ring(out, rng, c, 300, 20, 0.45, hard)
@@ -194,12 +228,12 @@ static func _tide(out: Array, k: int, rng) -> void:
 	var rows := 3 + k
 	for r in rows:
 		var row_k := r % 2
-		_tide_row(out, rng, 110 + r * 80, 7 - row_k, 60 + 20 * k, 0.8 + 0.15 * k, r * 0.8, hard)
+		_tide_row(out, rng, 110 + r * 80, 7 - row_k, 60 + 20 * k, 0.8 + 0.15 * k, r * 0.8, hard, ["bar", "pill", ""][r % 3])
 	if k >= 3:
 		# bobbing small bricks between the rows
 		for j in 6:
 			_add(out, Vector2(CX - 375 + j * 150, 150 + rows * 80), {
-				"type": _roll(rng, hard), "size": SMALL,
+				"type": _roll(rng, hard), "size": SMALL, "shape": "half",
 				"move_amp": Vector2(0, 40), "move_freq": 1.5, "phase": j * 0.7})
 
 ## Bricks that fade out and become intangible on a rolling wave.
@@ -211,7 +245,7 @@ static func _phantom(out: Array, k: int, rng) -> void:
 	for y in range(-radius, radius + 1):
 		for x in range(-radius - 3, radius + 4):
 			if abs(x) * 0.6 + abs(y) > radius: continue
-			var spec := {"type": _roll(rng, hard), "size": SMALL}
+			var spec := {"type": _roll(rng, hard), "size": SMALL, "shape": "diamond" if (x + y) % 2 == 0 else "circle"}
 			if rng.randf() < blink_ratio:
 				spec["blink"] = period
 				spec["phase"] = (x + y) * 0.25
@@ -229,7 +263,7 @@ static func _spiral(out: Array, k: int, rng) -> void:
 		for j in 9:
 			var r := 60.0 + j * 32.0
 			var a := TAU * arm / arms + j * 0.45
-			var spec := {"type": _roll(rng, hard), "size": SMALL if j < 5 else LONG, "spin": 1.5 + 0.3 * k}
+			var spec := {"type": _roll(rng, hard), "size": SMALL, "shape": "tri" if j < 7 else "star", "spin": 1.5 + 0.3 * k}
 			if speed != 0.0:
 				spec.merge({"orbit_center": c, "orbit_radius": r, "orbit_angle": a, "orbit_speed": speed})
 			_add(out, c + Vector2.from_angle(a) * r, spec)
@@ -237,16 +271,16 @@ static func _spiral(out: Array, k: int, rng) -> void:
 ## Everything at once.
 static func _chaos(out: Array, k: int, rng) -> void:
 	var hard := 0.6 + k / 10.0
-	_ring(out, rng, Vector2(CX, CY + 40), 150 + 20 * k, 10 + 2 * k, 0.5 + 0.1 * k, hard)
-	_tide_row(out, rng, 90, 7, 80 + 10 * k, 1.0 + 0.1 * k, 0.0, hard)
+	_ring(out, rng, Vector2(CX, CY + 40), 150 + 20 * k, 10 + 2 * k, 0.5 + 0.1 * k, hard, "star")
+	_tide_row(out, rng, 90, 7, 80 + 10 * k, 1.0 + 0.1 * k, 0.0, hard, "pill")
 	if k >= 1:
-		_tide_row(out, rng, 600, 6, 100, 1.2, 1.5, hard)
+		_tide_row(out, rng, 600, 6, 100, 1.2, 1.5, hard, "bar")
 	# blinking core
 	for j in range(-1, 2):
 		for m in range(-1, 2):
 			_add(out, Vector2(CX + j * GRID, CY + 40 + m * GRID), {
-				"type": _roll(rng, hard), "size": SMALL, "blink": 2.5 - 0.2 * k, "phase": (j + m) * 0.4})
+				"type": _roll(rng, hard), "size": SMALL, "shape": "hex", "blink": 2.5 - 0.2 * k, "phase": (j + m) * 0.4})
 	if k >= 2:
 		for side in [-1, 1]:
 			for j in 2 + k / 2:
-				_add(out, Vector2(CX + side * 520, 200 + j * 110), {"type": _roll(rng, hard), "size": LONG, "spin": side * (1.0 + 0.2 * k)})
+				_add(out, Vector2(CX + side * 520, 200 + j * 110), {"type": _roll(rng, hard), "size": LONG, "shape": "bar", "spin": side * (1.0 + 0.2 * k)})

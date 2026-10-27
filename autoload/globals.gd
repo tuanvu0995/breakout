@@ -58,11 +58,14 @@ func circle_tex(diameter: int) -> ImageTexture:
 	return sdf_texture("c%d" % diameter, Vector2i(diameter, diameter),
 		func(p): return p.length() - diameter / 2.0 + 1.0)
 
-## n white dots in a row (brick health pips)
-func pips_tex(n: int) -> ImageTexture:
-	return sdf_texture("pips%d" % n, Vector2i(60, 20), func(p):
+## n white dots in a row (brick health pips). `last` (0..1] shrinks the last dot
+## so bullet chip damage (1/4 of a dot) is visible.
+func pips_tex(n: int, last := 1.0) -> ImageTexture:
+	return sdf_texture("pips%d_%.2f" % [n, last], Vector2i(60, 20), func(p):
 		var d := 1e9
-		for i in n: d = min(d, (p - Vector2((i - (n - 1) / 2.0) * 18.0, 0)).length() - 6.0)
+		for i in n:
+			var r := 6.0 if i < n - 1 else 2.0 + 4.0 * last
+			d = min(d, (p - Vector2((i - (n - 1) / 2.0) * 18.0, 0)).length() - r)
 		return d)
 
 func diamond_tex() -> ImageTexture:

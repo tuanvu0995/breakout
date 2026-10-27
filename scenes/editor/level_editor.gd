@@ -9,10 +9,14 @@ const SAVE_PATH := "user://custom_levels.json"
 const SLOTS := 3
 const TYPES := ["1", "2", "3", "BOMB", "ENERGY", "ERASE"]
 const MOTIONS := ["STILL", "SPIN", "BLINK", "WAVE"]
+const SHAPES := ["", "tri", "wedge", "circle", "hex", "diamond", "half", "star", "heart"]
+const SHAPE_LABELS := ["SQUARE", "TRI", "WEDGE", "CIRCLE", "HEX", "DIAMOND", "HALF", "STAR", "HEART"]
 
-var cells := {}  # Vector2i -> [type:int, motion:String]
+var cells := {}  # Vector2i -> [type:int, motion:String, shape:String, rot:int]
 var tool_type := 0
 var tool_motion := "STILL"
+var tool_shape := ""
+var tool_rot := 0
 var slot := 0
 var grid_origin := Vector2(400, 150)
 var grid_scale := 1.0
@@ -41,10 +45,11 @@ func build_ui() -> void:
 	status.position = Vector2(grid_origin.x + 700, 60)
 	add_child(status)
 
-	var bottom_y := grid_origin.y + ROWS * CELL + 40
+	var bottom_y := grid_origin.y + ROWS * CELL + 30
 	_row(TYPES, Vector2(grid_origin.x, bottom_y), func(i): tool_type = i; refresh_status())
-	_row(MOTIONS, Vector2(grid_origin.x, bottom_y + 90), func(i): tool_motion = MOTIONS[i]; refresh_status())
-	_row(["SLOT 1", "SLOT 2", "SLOT 3", "SAVE", "CLEAR", "PLAY", "MENU"], Vector2(grid_origin.x, bottom_y + 180), on_action)
+	_row(MOTIONS, Vector2(grid_origin.x, bottom_y + 70), func(i): tool_motion = MOTIONS[i]; refresh_status())
+	_row(SHAPE_LABELS + ["ROTATE"], Vector2(grid_origin.x, bottom_y + 140), on_shape)
+	_row(["SLOT 1", "SLOT 2", "SLOT 3", "SAVE", "CLEAR", "PLAY", "MENU"], Vector2(grid_origin.x, bottom_y + 210), on_action)
 
 func _row(labels: Array, pos: Vector2, cb: Callable) -> void:
 	var row := HBoxContainer.new()
@@ -53,7 +58,7 @@ func _row(labels: Array, pos: Vector2, cb: Callable) -> void:
 	for i in labels.size():
 		var b := Button.new()
 		b.text = labels[i]
-		b.add_theme_font_size_override("font_size", 34)
+		b.add_theme_font_size_override("font_size", 28)
 		b.focus_mode = Control.FOCUS_NONE
 		b.pressed.connect(cb.bind(i))
 		row.add_child(b)
@@ -67,8 +72,16 @@ func on_action(i: int) -> void:
 		5: play_test()
 		6: get_tree().change_scene_to_file("res://scenes/ui/main_menu/main_menu.tscn")
 
+func on_shape(i: int) -> void:
+	if i == SHAPES.size():
+		tool_rot = (tool_rot + 90) % 360
+	else:
+		tool_shape = SHAPES[i]
+	refresh_status()
+
 func refresh_status() -> void:
-	status.text = "SLOT %d   TOOL: %s   MOTION: %s" % [slot + 1, TYPES[tool_type], tool_motion]
+	status.text = "SLOT %d  %s  %s  %s %d°" % [slot + 1, TYPES[tool_type], tool_motion,
+		SHAPE_LABELS[SHAPES.find(tool_shape)], tool_rot]
 
 # --- painting ------------------------------------------------------------
 
@@ -88,7 +101,7 @@ func paint(p: Vector2) -> void:
 	var c := cell_at(p)
 	if c.x < 0: return
 	if TYPES[tool_type] == "ERASE": cells.erase(c)
-	else: cells[c] = [tool_type, tool_motion]
+	else: cells[c] = [tool_type, tool_motion, tool_shape, tool_rot]
 	queue_redraw()
 
 func _draw() -> void:
@@ -103,7 +116,16 @@ func _draw() -> void:
 	var font := get_theme_default_font()
 	for c in cells:
 		var rect := Rect2(grid_origin + Vector2(c) * CELL + Vector2(5, 5), Vector2(56, 56))
-		draw_texture_rect(tex, rect, false, brick_colors[cells[c][0]])
+		var shape: String = cells[c][2] if cells[c].size() > 2 else ""
+		var rot: int = cells[c][3] if cells[c].size() > 3 else 0
+		if shape == "":
+			draw_texture_rect(tex, rect, false, brick_colors[cells[c][0]])
+		else:
+			var st := BrickShapes.texture(shape)
+			var k: float = 56.0 / max(st.get_width(), st.get_height())
+			draw_set_transform(rect.get_center(), deg_to_rad(rot), Vector2.ONE * k)
+			draw_texture(st, -Vector2(st.get_size()) / 2.0, brick_colors[cells[c][0]])
+			draw_set_transform(Vector2.ZERO)
 		var m: String = cells[c][1]
 		if m != "STILL":
 			draw_string(font, rect.position + Vector2(0, 40), m[0], HORIZONTAL_ALIGNMENT_CENTER, 56, 28, Globals.C_DARK)
@@ -119,7 +141,7 @@ func read_all() -> Array:
 func save_slot() -> void:
 	var all := read_all()
 	var list := []
-	for c in cells: list.append([c.x, c.y, cells[c][0], cells[c][1]])
+	for c in cells: list.append([c.x, c.y] + cells[c])
 	all[slot] = list
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify(all))
@@ -128,7 +150,8 @@ func load_slot(i: int) -> void:
 	slot = i
 	cells.clear()
 	for e in read_all()[i]:
-		cells[Vector2i(int(e[0]), int(e[1]))] = [int(e[2]), str(e[3])]
+		cells[Vector2i(int(e[0]), int(e[1]))] = [int(e[2]), str(e[3]),
+			str(e[4]) if e.size() > 4 else "", int(e[5]) if e.size() > 5 else 0]
 	refresh_status()
 	queue_redraw()
 
@@ -147,7 +170,8 @@ func play_test() -> void:
 func to_layout() -> Array:
 	var out := []
 	for c in cells:
-		var spec := {"type": cells[c][0], "size": Levels.SMALL}
+		var spec := {"type": cells[c][0], "size": Levels.SMALL, "rot": float(cells[c][3])}
+		if cells[c][2] != "": spec["shape"] = cells[c][2]
 		match cells[c][1]:
 			"SPIN": spec["spin"] = 1.5
 			"BLINK": spec.merge({"blink": 2.6, "phase": (c.x + c.y) * 0.25})

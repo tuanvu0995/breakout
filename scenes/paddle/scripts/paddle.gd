@@ -20,7 +20,9 @@ signal start()
 @export var velocity_multiplier: float = 0.2
 
 var dashing: bool = false
-var can_dash: bool = false
+## Hold-to-boost replaces the old double-tap dash.
+const BOOST_MULT := 1.9
+var boosting := false
 var last_move_key: bool = false
 var ball_attached = null
 var bumping: bool = false : get = get_bumping, set = set_bumping
@@ -188,19 +190,6 @@ func _input(event):
 			touch_index = -1
 	elif event is InputEventScreenDrag and event.index == touch_index:
 		touch_x = _touch_world_x(event.position)
-	if event is InputEventKey:
-		if event.is_action_pressed("move_left"):
-			if move_left_pressed:
-				can_dash = true
-			else:
-				move_left_pressed = true
-				doubleTapTimer.start(double_tap_duration)
-		if event.is_action_pressed("move_right"):
-			if move_right_pressed:
-				can_dash = true
-			else:
-				move_right_pressed = true
-				doubleTapTimer.start(double_tap_duration)
 
 func _process(delta: float) -> void:
 	# Hitstop
@@ -219,22 +208,22 @@ func _process(delta: float) -> void:
 		dir = clamp((touch_x - global_position.x) / 80.0, -1.0, 1.0)
 		if abs(touch_x - global_position.x) < 4.0: dir = 0.0
 	
+	# Hold Space (the bump key) while moving to boost. A tap still launches / bumps.
+	var want_boost: bool = dir != 0 and Input.is_action_pressed("bump") and not ball_attached
+	if want_boost != boosting:
+		boosting = want_boost
+		if boosting:
+			ghostSpawner.start_spawn()
+			Audio.sfx("dash", -8.0, 0.1)
+		else:
+			ghostSpawner.stop_spawn()
+	var top_speed := speed * (BOOST_MULT if boosting else 1.0)
+
 	# Smooth the movement
 	if dir != 0:
-		velocity.x = lerp(velocity.x, dir * speed, accel * delta)
+		velocity.x = lerp(velocity.x, dir * top_speed, accel * delta)
 	else:
 		velocity.x = lerp(velocity.x, 0.0, deccel * delta)
-
-	# Dash
-	if dir != 0 and not dashing and can_dash:
-		dashing = true
-		dash_timer.start(dash_duration)
-		ghostSpawner.start_spawn()
-		Audio.sfx("dash", -6.0, 0.1)
-		velocity.x = sign(velocity.x) * dash_speed
-		can_dash = false
-		move_left_pressed = false
-		move_right_pressed = false
 
 	# Oscillator
 	oscillator_velocity += (velocity.x / speed) * velocity_multiplier
