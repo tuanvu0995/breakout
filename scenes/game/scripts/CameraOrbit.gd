@@ -120,6 +120,7 @@ func stop_tracking() -> void:
 func shake(duration, frequency, amplitude):
 	amplitude *= Globals.settings.get("shake", 1.0)  # player setting: off / low / full
 	if frequency == 0 or amplitude <= 0.0: return
+	Globals.rumble(clamp(amplitude / 25.0, 0.1, 1.0), min(duration, 0.6))
 	# Initialize variables.
 	_duration = duration
 	_timer = duration

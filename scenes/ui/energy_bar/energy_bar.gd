@@ -43,7 +43,7 @@ func set_energy(new_value: int) -> void:
 	if ready_tween: ready_tween.kill()
 	if full:
 		Fx.punch(progress, 0.15, 0.5)
-		label.text = "OVERDRIVE READY  -  " + ("2-FINGER TAP" if DisplayServer.is_touchscreen_available() else "PRESS E")
+		label.text = "OVERDRIVE READY  -  " + {"pad": "PRESS Y", "touch": "2-FINGER TAP"}.get(Globals.input_mode, "PRESS E")
 		label.add_theme_color_override("font_color", Globals.C_AMBER)
 		ready_tween = create_tween().set_loops()
 		ready_tween.tween_property(label, "modulate:a", 0.35, 0.45)

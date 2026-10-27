@@ -211,7 +211,61 @@ func migrate_old_saves() -> void:
 		if FileAccess.file_exists(old.path_join(f)):
 			DirAccess.copy_absolute(old.path_join(f), "user://".path_join(f))
 
+# ---------------------------------------------------------------- input devices
+
+## "kb" (keyboard/mouse), "pad" (gamepad) or "touch": the device used last.
+## UI hints switch their labels on input_mode_changed.
+signal input_mode_changed(mode: String)
+var input_mode := "touch" if DisplayServer.is_touchscreen_available() else "kb"
+
+const PAD_DEADZONE := 0.35
+
+## Gamepad bindings, added on top of the keyboard ones from project.godot.
+func add_gamepad_bindings() -> void:
+	var bind := func(action: String, ev: InputEvent):
+		if not InputMap.has_action(action): InputMap.add_action(action)
+		InputMap.action_set_deadzone(action, PAD_DEADZONE)
+		InputMap.action_add_event(action, ev)
+	var button := func(b: JoyButton) -> InputEventJoypadButton:
+		var e := InputEventJoypadButton.new()
+		e.button_index = b
+		return e
+	var axis := func(a: JoyAxis, dir: float) -> InputEventJoypadMotion:
+		var e := InputEventJoypadMotion.new()
+		e.axis = a
+		e.axis_value = dir
+		return e
+	bind.call("move_left", axis.call(JOY_AXIS_LEFT_X, -1.0))
+	bind.call("move_left", button.call(JOY_BUTTON_DPAD_LEFT))
+	bind.call("move_right", axis.call(JOY_AXIS_LEFT_X, 1.0))
+	bind.call("move_right", button.call(JOY_BUTTON_DPAD_RIGHT))
+	bind.call("bump", button.call(JOY_BUTTON_A))             # launch / bump, hold to boost
+	bind.call("special", button.call(JOY_BUTTON_Y))          # overdrive
+	bind.call("special", button.call(JOY_BUTTON_RIGHT_SHOULDER))
+	bind.call("attract", button.call(JOY_BUTTON_X))          # pull ball (hold)
+	bind.call("attract", button.call(JOY_BUTTON_LEFT_SHOULDER))
+	bind.call("ui_cancel", button.call(JOY_BUTTON_START))     # pause (B already backs out of menus)
+
+func _input(event: InputEvent) -> void:
+	var m := input_mode
+	if event is InputEventJoypadButton or (event is InputEventJoypadMotion and abs(event.axis_value) > PAD_DEADZONE):
+		m = "pad"
+	elif event is InputEventKey or event is InputEventMouseButton:
+		m = "kb"
+	elif event is InputEventScreenTouch:
+		m = "touch"
+	if m != input_mode:
+		input_mode = m
+		input_mode_changed.emit(m)
+
+## Rumble the active gamepad (no-op on keyboard / touch or with screen shake off).
+func rumble(strength: float, seconds: float) -> void:
+	if input_mode != "pad" or settings.get("shake", 1.0) <= 0.0: return
+	for id in Input.get_connected_joypads():
+		Input.start_joy_vibration(id, clamp(strength * 0.6, 0.0, 1.0), clamp(strength, 0.0, 1.0), seconds)
+
 func _ready() -> void:
+	add_gamepad_bindings()
 	migrate_old_saves()
 	apply_ui_theme()
 	var cfg := ConfigFile.new()
