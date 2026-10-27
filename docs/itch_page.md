@@ -62,4 +62,8 @@ Music and sound effects: CC0 (Shapeforms Audio, Space Music Pack and CC0 music l
 | `screenshot_5.jpg` | Level editor |
 | `screenshot_6.jpg` | Final boss: THE ARCHITECT |
 
-Re-render the cover after changing it: `godot --write-movie <out>.png --fixed-fps 30 --quit-after 12 res://tools/cover/cover.tscn`, then crop the centered 1360x1080 frame and scale to 630x500.
+Re-render the cover after changing `tools/cover/cover.gd`: run the scene in a window
+(e.g. a tiny script that instantiates `res://tools/cover/cover.tscn`, waits a second and saves
+`get_viewport().get_texture().get_image()`), then crop the centered 1.26:1 frame from the
+saved image and scale it to 1260x1000 (`cover@2x.png`) and 630x500 (`cover.png`).
+The cover uses the real brick scene, so it always matches the in-game look.

@@ -11,35 +11,47 @@ func _ready() -> void:
 	bd.full_screen = true
 	bd.set_theme(1, Globals.C_BG, Globals.C_WALL)
 	add_child(bd)
-	# bricks: a burst of shapes in the top half
-	var shapes := ["", "tri", "circle", "hex", "diamond", "star", "heart", "half", "pill"]
-	var colors := [Globals.C_CORAL, Globals.C_AMBER, Globals.C_VIOLET, Globals.C_CYAN, Globals.C_RED]
+	# Real game bricks (same scene and art as in play), every brick kind on show:
+	# 1/2/3-hit pips, bomb, energy, a fading phantom, plus a boss in the corner.
+	var brick_scene := preload("res://scenes/brick/brick.tscn")
+	# [shape, type (0..2 hits, 3 bomb, 4 energy), x offset, y, rot, alpha]
+	var layout := [
+		["", 2, -480, 470, 0, 1.0], ["tri", 1, -360, 470, 0, 1.0], ["hex", 0, -240, 470, 0, 1.0],
+		["", 3, -120, 470, 0, 1.0], ["diamond", 4, 0, 470, 0, 1.0], ["", 2, 120, 470, 0, 1.0],
+		["heart", 1, 240, 470, 0, 1.0], ["circle", 0, 360, 470, 0, 1.0], ["star", 2, 480, 470, 0, 1.0],
+		["circle", 1, -420, 580, 0, 1.0], ["", 0, -300, 580, 0, 1.0], ["hex", 4, -180, 580, 0, 1.0],
+		["", 1, -60, 580, 0, 0.35], ["tri", 2, 60, 580, 180, 1.0], ["circle", 3, 180, 580, 0, 1.0],
+		["diamond", 0, 300, 580, 0, 1.0], ["", 2, 420, 580, 0, 1.0],
+		["star", 0, -300, 690, 0, 1.0], ["half", 1, -180, 690, 0, 1.0], ["pill", 2, 330, 690, 0, 1.0],
+	]
+	for e in layout:
+		var b = brick_scene.instantiate()
+		var spec := {"type": e[1], "size": 0, "rot": float(e[4])}
+		if e[0] != "": spec["shape"] = e[0]
+		b.spec = spec
+		b.position = Vector2(OX + W / 2.0 + e[2], e[3])
+		add_child(b)
+		b.scale = Vector2.ONE * 1.45
+		b.modulate.a = e[5]
+	# boss looming in the bottom-right corner
+	var boss = brick_scene.instantiate()
+	boss.spec = {"type": 2, "size": 0, "boss": true, "shape": "hex", "scale": 3.0, "hp": 30, "color": Globals.C_RED}
+	boss.position = Vector2(OX + W - 150, 880)
+	add_child(boss)
+	boss.rotation_degrees = -12
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	for row in 3:
-		var n := 9 - row
-		for i in n:
-			var x := OX + W / 2.0 + (i - (n - 1) / 2.0) * 120.0
-			var y := 430.0 + row * 105.0
-			var sh: String = shapes[(i + row * 2) % shapes.size()]
-			var s := Sprite2D.new()
-			s.texture = Globals.round_rect_tex(Vector2i(84, 84), 18) if sh == "" else BrickShapes.texture(sh)
-			s.scale = Vector2.ONE * (1.0 if sh == "" else 1.35)
-			s.rotation_degrees = rng.randf_range(-14, 14)
-			s.modulate = colors[(i + row) % colors.size()]
-			s.position = Vector2(x, y)
-			add_child(s)
 	# shattering brick with shards
 	for i in 18:
 		var p := Sprite2D.new()
 		p.texture = Globals.round_rect_tex(Vector2i(14, 14), 3)
 		p.modulate = Globals.C_AMBER if i % 2 else Globals.C_CORAL
-		p.position = Vector2(OX + W / 2.0 + 150, 640) + Vector2.from_angle(TAU * i / 18.0) * rng.randf_range(40, 110)
+		p.position = Vector2(OX + W / 2.0 + 60, 690) + Vector2.from_angle(TAU * i / 18.0) * rng.randf_range(40, 110)
 		p.rotation = rng.randf() * TAU
 		add_child(p)
 	# ball with trail
 	var trail := Line2D.new()
-	trail.points = PackedVector2Array([Vector2(OX + 540, 960), Vector2(OX + 640, 820), Vector2(OX + 760, 680)])
+	trail.points = PackedVector2Array([Vector2(OX + 560, 970), Vector2(OX + 640, 860), Vector2(OX + 735, 730)])
 	trail.width = 22
 	var wc := Curve.new(); wc.add_point(Vector2(0, 0.1)); wc.add_point(Vector2(1, 1))
 	trail.width_curve = wc
@@ -47,7 +59,7 @@ func _ready() -> void:
 	add_child(trail)
 	var ball := Sprite2D.new()
 	ball.texture = Globals.circle_tex(52)
-	ball.position = Vector2(OX + 765, 672)
+	ball.position = Vector2(OX + 740, 722)
 	add_child(ball)
 	# ship firing triple shots
 	var ship := Node2D.new()
@@ -56,11 +68,11 @@ func _ready() -> void:
 	for poly in Globals.make_ship(Globals.SKINS[0], 75, 21): ship.add_child(poly)
 	add_child(ship)
 	for k in [-1, 0, 1]:
-		for j in 3:
+		for j in 2:
 			var b := Sprite2D.new()
 			b.texture = Globals.round_rect_tex(Vector2i(10, 34), 5)
 			b.modulate = Globals.C_AMBER
-			b.position = ship.position + Vector2(k * 52, -90 - j * 95)
+			b.position = ship.position + Vector2(k * 52, -90 - j * 70)
 			add_child(b)
 	# title
 	var title := Label.new()
