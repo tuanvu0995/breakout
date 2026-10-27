@@ -57,7 +57,9 @@ func _process(delta):
 			
 #			print("Distance: ", distance)
 #			print("Max dist: ", max_dist)
-			zoom = lerp(Vector2(0.975, 0.975), Vector2(1.025, 1.025), 1 - (distance/max_dist)) * base_zoom
+			# Steady framing: the old "breathing" zoom followed the ball and made the
+			# whole arena (and the ship) appear to drift. Shake still applies via offset.
+			zoom = Vector2.ONE * base_zoom
 	else:
 		pass
 	

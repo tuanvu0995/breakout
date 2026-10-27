@@ -126,9 +126,11 @@ func keep_inside_arena() -> void:
 		if b.global_position.x < left + r:
 			b.global_position.x = left + r
 			b.velocity.x = abs(b.velocity.x)
+			b._enforce_min_angle()  # this acts as a wall bounce
 		elif b.global_position.x > right - r:
 			b.global_position.x = right - r
 			b.velocity.x = -abs(b.velocity.x)
+			b._enforce_min_angle()
 	if is_instance_valid(barrier): barrier.resize(backdrop.half_width)
 
 # ---------------------------------------------------------------- multiball

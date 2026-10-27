@@ -121,23 +121,20 @@ func _update_unstuck(delta: float) -> void:
 				add_collision_exception_with(b)
 				pass_through[b] = PASS_FRAMES * 2
 
-## A ball skimming almost horizontally for too long gets bent downward toward
-## the ship, so it can't ping-pong between the walls forever.
-const FLAT_RATIO := 0.3   # |vy| / |v| below this counts as "flat" (~17 degrees)
-const FLAT_TIME := 2.0
-const FLAT_FIX_ANGLE := deg_to_rad(30.0)
-var flat_time := 0.0
+## Bounces never leave the ball skimming flat: right after a bounce, a path
+## shallower than MIN_ANGLE is lifted to MIN_ANGLE, keeping speed and both
+## directions (left/right, up/down). It only happens at a contact, so the ball
+## never turns in mid-air.
+const MIN_ANGLE := deg_to_rad(15.0)
 
-func _update_flat(delta: float) -> void:
+func _enforce_min_angle() -> void:
 	var v := velocity.length()
-	if attached_to or v < 10.0 or abs(velocity.y) >= v * FLAT_RATIO:
-		flat_time = 0.0
-		return
-	flat_time += delta
-	if flat_time >= FLAT_TIME:
-		flat_time = 0.0
-		var sx := 1.0 if velocity.x >= 0.0 else -1.0
-		velocity = Vector2(sx * cos(FLAT_FIX_ANGLE), sin(FLAT_FIX_ANGLE)) * v  # +y is down
+	if v < 10.0: return
+	var ang := atan2(abs(velocity.y), abs(velocity.x))  # 0 = flat, 90 = vertical
+	if ang >= MIN_ANGLE: return
+	var sx := 1.0 if velocity.x >= 0.0 else -1.0
+	var sy := 1.0 if velocity.y > 0.0 else -1.0  # exactly flat: send it up, away from the ship
+	velocity = Vector2(sx * cos(MIN_ANGLE), sy * sin(MIN_ANGLE)) * v
 
 func _physics_process(delta: float) -> void:
 	# Hitstop
@@ -147,7 +144,6 @@ func _physics_process(delta: float) -> void:
 			stop_hitstop()
 		return
 	_update_unstuck(delta)  # after hitstop, so pass-through time isn't spent frozen
-	_update_flat(delta)
 	
 	
 	# $VelocityLine.rotation = velocity.angle()
@@ -246,6 +242,7 @@ func _physics_process(delta: float) -> void:
 		velocity = velocity.bounce(normal)
 	
 	velocity = velocity.limit_length(max_speed)
+	_enforce_min_angle()
 	
 	if collision.get_collider().is_in_group("Bricks"):
 		if repeat_hits <= 1: start_hitstop(hitstop_block)  # no freeze while escaping an overlap
