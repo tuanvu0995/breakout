@@ -91,6 +91,8 @@ func layout_bricks() -> void:
 	var theme: Dictionary = Levels.theme_of(level)
 	$Pattern.color = theme["field"]
 	$Wall/Polygon2D.color = theme["wall"]
+	backdrop.set_theme(((level - 1) % Levels.COUNT) / 5, theme["field"], theme["wall"])
+	frame_decor.set_color(theme["wall"])
 	Audio.play_theme_music(((level - 1) % Levels.COUNT) / 5)
 	Audio.sfx("level_start", -6.0)
 	if Globals.custom_level.is_empty() and level <= Levels.COUNT:
@@ -108,6 +110,7 @@ var side_walls: Array = []
 
 ## Two movable walls that narrow the playfield per level.
 func set_field_width(half_width: float, color: Color) -> void:
+	create_tween().tween_property(backdrop, "half_width", half_width, 0.6).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	if side_walls.is_empty():
 		for side in [-1, 1]:
 			var body := StaticBody2D.new()
@@ -120,13 +123,18 @@ func set_field_width(half_width: float, color: Color) -> void:
 			var x0 := 0.0 if side > 0 else -1000.0
 			poly.polygon = PackedVector2Array([Vector2(x0, -1200), Vector2(x0 + 1000, -1200), Vector2(x0 + 1000, 1200), Vector2(x0, 1200)])
 			body.add_child(poly)
+			var decor := WallDecor.new()
+			decor.rects = [Rect2(x0, -1200, 1000, 2400)]
+			decor.rivet_x = side * 22.0  # just inside the arena-facing edge
+			body.add_child(decor)
 			body.position = Vector2(Levels.CX + side * (Levels.FULL_HALF_WIDTH + 1000), 540)
 			add_child(body)
-			move_child(body, $Pattern.get_index() + 1)  # under bricks, over background
+			move_child(body, backdrop.get_index() + 1)  # under bricks, over the backdrop
 			side_walls.append(body)
 	for i in 2:
 		var side := -1 if i == 0 else 1
 		side_walls[i].get_child(1).color = color
+		side_walls[i].get_child(2).set_color(color)
 		create_tween().tween_property(side_walls[i], "position:x", Levels.CX + side * half_width, 0.6) \
 			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
@@ -190,11 +198,24 @@ func hide_combo() -> void:
 	combo_lbl.visible = false
 	pass
 
+const Backdrop = preload("res://scenes/effects/backdrop.gd")
+const WallDecor = preload("res://scenes/effects/wall_decor.gd")
+var backdrop: Node2D
+var frame_decor: Node2D
+
 func apply_flat_style() -> void:
 	$Pattern.material = null
 	$Pattern.color = Globals.C_FIELD
 	$Wall/Polygon2D.texture = null
 	$Wall/Polygon2D.color = Globals.C_WALL
+	backdrop = Backdrop.new()
+	backdrop.add_to_group("backdrop")
+	add_child(backdrop)
+	move_child(backdrop, $Pattern.get_index() + 1)
+	# outer frame: left, right and top bands of the static wall polygon (wall-local coords)
+	frame_decor = WallDecor.new()
+	frame_decor.rects = [Rect2(-460, -400, 460, 1500), Rect2(1356, -400, 400, 1500), Rect2(0, -400, 1356, 400)]
+	$Wall.add_child(frame_decor)
 	combo_lbl.add_theme_color_override("font_color", Globals.C_AMBER)
 	# Combo / announcements live in the HUD under the score, on a dark pill,
 	# so they never blend into the bricks behind them.
@@ -262,8 +283,11 @@ func on_powerup_collected(kind: int) -> void:
 		PowerUp.KIND.GUN:
 			flash_text(paddle.add_gun_level(1))
 		PowerUp.KIND.WIDE:
-			paddle.make_wide(15.0)
-			flash_text("WIDE")
+			var w: float = paddle.make_wide(15.0)
+			flash_text("WIDE x%.1f" % w if w < paddle.WIDE_MAX else "MAX WIDE")
+		PowerUp.KIND.BARRIER:
+			add_barrier()
+			flash_text("BARRIER  %ds" % int(Barrier.DURATION))
 		PowerUp.KIND.LIFE:
 			health = min(health + 1, 3)
 			health_bar.set_health(health)
@@ -279,7 +303,22 @@ func on_powerup_collected(kind: int) -> void:
 	score += 100
 	score_ui.set_score(score)
 
+const Barrier = preload("res://scenes/effects/barrier.gd")
+var barrier: Node2D
+
+func add_barrier() -> void:
+	if is_instance_valid(barrier) and barrier.time_left > 0.0:
+		barrier.refresh()
+		return
+	barrier = Barrier.new()
+	barrier.color = Levels.theme_of(level)["wall"].lightened(0.5)
+	barrier.half_width = backdrop.half_width
+	barrier.position = Vector2(Levels.CX, 1052)
+	add_child(barrier)
+	Globals.camera.shake(0.2, 8, 6)
+
 func clear_drops() -> void:
+	if is_instance_valid(barrier): barrier.queue_free()
 	for c in get_children():
 		if c is PowerUp: c.queue_free()
 
@@ -317,10 +356,11 @@ class PauseHandler extends Node:
 		menu.resumed.connect(func():
 			menu = null
 			get_tree().paused = false)
-		game.add_child(menu)
+		game.add_child.call_deferred(menu)  # may run while the scene is still setting up
 	func _notification(what: int) -> void:
-		# Mobile: auto-pause when the app goes to background
-		if what == NOTIFICATION_APPLICATION_FOCUS_OUT and Engine.get_write_movie_path() == "": open()
+		# Auto-pause when the app goes to background, but only mid-rally:
+		# losing focus before the ball is launched shouldn't throw a menu up.
+		if what == NOTIFICATION_APPLICATION_FOCUS_OUT and game.started and Engine.get_write_movie_path() == "": open()
 	func _unhandled_input(event: InputEvent) -> void:
 		if not menu and event.is_action_pressed("ui_cancel"):
 			get_viewport().set_input_as_handled()
@@ -354,6 +394,7 @@ func on_brick_destroyed(which) -> void:
 	combo += 1
 	show_combo(combo)
 	combo_timer.start()
+	Audio.sfx("brick_break", -3.0, 0.02, Audio.combo_pitch(combo))  # rises with the combo
 	var pts: int = score_brick_destroyed * combo * (2 if fast_time > 0.0 else 1)
 	score += pts
 	var hot: Color = [Globals.C_WHITE, Globals.C_AMBER, Globals.C_CORAL, Globals.C_VIOLET][min(combo / 4, 3)]

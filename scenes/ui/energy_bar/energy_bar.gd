@@ -12,7 +12,7 @@ func _ready() -> void:
 	size = BAR_SIZE + Vector2(0, 40)
 	position = Vector2(1920 - 40 - BAR_SIZE.x, 22)
 	progress.fill_mode = ProgressBar.FILL_BEGIN_TO_END
-	progress.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	progress.set_anchors_preset(Control.PRESET_TOP_LEFT)  # fixed size, no stretching
 	progress.position = Vector2(0, 34)
 	progress.size = BAR_SIZE
 	progress.value = 0.0

@@ -133,17 +133,25 @@ func start_overdrive(seconds: float) -> void:
 	gun_overdrive = seconds
 	update_barrels()
 
-func make_wide(seconds: float) -> void:
-	wide_time = seconds
-	$CollisionShape.shape.size = base_shape_size * Vector2(1.5, 1.0)
-	sprite.scale.x = 1.5
+## Stacks: each pickup adds width (up to 2x) and time (up to 30 s). Returns the new width.
+const WIDE_STEP := 0.5
+const WIDE_MAX := 2.0
+var wide_mult := 1.0
+
+func make_wide(seconds: float) -> float:
+	wide_time = min(wide_time + seconds, 30.0)
+	wide_mult = min(wide_mult + WIDE_STEP, WIDE_MAX)
+	$CollisionShape.shape.size = base_shape_size * Vector2(wide_mult, 1.0)
+	create_tween().tween_property(sprite, "scale:x", wide_mult, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	return wide_mult
 
 func update_weapons(delta: float) -> void:
 	if wide_time > 0.0:
 		wide_time -= delta
 		if wide_time <= 0.0:
+			wide_mult = 1.0
 			$CollisionShape.shape.size = base_shape_size
-			sprite.scale.x = 1.0
+			create_tween().tween_property(sprite, "scale:x", 1.0, 0.25)
 	if gun_overdrive > 0.0:
 		gun_overdrive -= delta
 		if gun_overdrive <= 0.0: update_barrels()
@@ -288,6 +296,7 @@ func get_bumping() -> bool:
 	return bumping
 	
 func launch_ball() -> void:
+	if not ball_attached: return
 	emit_signal("start")
 	ball_attached.launch()
 	ball_attached = null

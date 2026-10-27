@@ -75,7 +75,9 @@ func _on_body_entered(body: Node) -> void:
 	if body.is_in_group("Bricks"):
 		if hit_bricks.has(body): return
 		hit_bricks[body] = true
-		if not body.isDestroyed: body.damage(DAMAGE)
+		if not body.isDestroyed:
+			body.damage(DAMAGE)
+			Audio.sfx("brick_hit", -14.0, 0.1, 1.4)
 		Fx.burst(scene, global_position, color, 6, 260.0, 7.0)
 		if splash > 0.0:
 			explode_area(scene)
@@ -89,6 +91,7 @@ func _on_body_entered(body: Node) -> void:
 	queue_free()
 
 func explode_area(scene: Node) -> void:
+	Audio.sfx("explode_small", -4.0, 0.1)
 	Fx.ring(scene, global_position, color, splash)
 	Globals.camera.shake(0.2, 10, 8)
 	for b in get_tree().get_nodes_in_group("Bricks"):

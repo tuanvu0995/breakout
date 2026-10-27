@@ -226,7 +226,7 @@ func give_energy() -> void:
 
 func explode() -> void:
 	spawn_bomb_explosion()
-	Audio.sfx("bomb", 0.0, 0.1)
+	Audio.sfx("bomb", 0.0, 0.08)
 	
 	var bodies = explosion_area.get_overlapping_bodies()
 	for body in bodies:
@@ -239,7 +239,6 @@ func explode() -> void:
 
 func destroy() -> void:
 	spawn_brick_explosion()
-	Audio.sfx("brick_break", -8.0, 0.15)
 	
 	emit_signal("destroyed", self)
 	queue_free()
