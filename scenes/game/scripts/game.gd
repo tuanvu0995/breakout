@@ -144,7 +144,17 @@ func clear_extra_balls() -> void:
 		if b != ball: b.queue_free()
 	balls = [ball]
 
+## Any ball below the arena counts as fallen, whatever its x (the death area
+## doesn't reach the far edge of a fully EXPANDed arena).
+const FALL_Y := 1110.0
+
+func catch_fallen_balls() -> void:
+	for b in balls.duplicate():
+		if is_instance_valid(b) and b != paddle.ball_attached and b.global_position.y > FALL_Y:
+			_on_DeathArea_body_entered(b)
+
 func _process(delta) -> void:
+	catch_fallen_balls()
 	keep_inside_arena()
 	update_boss(delta)
 	if arena_time > 0.0:
@@ -767,6 +777,7 @@ func on_energy_brick_destroyed() -> void:
 
 func _on_DeathArea_body_entered(body: Node) -> void:
 	if not body.is_in_group("Ball") or paddle.game_over: return
+	if body == paddle.ball_attached or not balls.has(body): return  # already handled
 	if balls.size() > 1:
 		# one of several balls fell: no life lost, promote another as the main ball
 		balls.erase(body)

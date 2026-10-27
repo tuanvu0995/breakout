@@ -59,5 +59,7 @@ func _physics_process(delta: float) -> void:
 
 func _on_body_entered(body: Node) -> void:
 	if not body.is_in_group("Paddle"): return
-	collected.emit(kind)
+	# Deferred: handlers add physics bodies (balls, barrier), which isn't allowed
+	# while the physics server is flushing this body_entered callback.
+	collected.emit.call_deferred(kind)
 	queue_free()

@@ -55,14 +55,86 @@ func _ready() -> void:
 func _process(delta) -> void:
 	color_based_on_velocity()
 
+## Anti-stuck: moving/rotating bricks are teleported each frame and can end up
+## overlapping the ball, which then "collides" every frame and jitters in place.
+## Repeated hits on the same brick within a few frames let the ball pass through
+## that brick briefly; a watchdog relaunches a ball that barely moved for 2 s.
+const STUCK_HITS := 3
+const PASS_FRAMES := 15
+var last_hit: Object = null
+var last_hit_pos := Vector2.INF
+var repeat_hits := 0
+var pass_through := {}  # brick -> frames left
+var watch_pos := Vector2.ZERO
+var watch_time := 0.0
+
+func _track_stuck(collider: Object) -> void:
+	# same brick again while the ball has barely moved (hitstop pauses make frame
+	# gaps unreliable, so measure distance instead)
+	if collider == last_hit and global_position.distance_to(last_hit_pos) < 24.0:
+		repeat_hits += 1
+	else:
+		repeat_hits = 1
+	last_hit = collider
+	last_hit_pos = global_position
+	if repeat_hits >= STUCK_HITS and collider is PhysicsBody2D:
+		# pass through every brick around the ball: in dense clusters getting out of
+		# one brick usually means being inside its neighbour
+		for b in get_tree().get_nodes_in_group("Bricks"):
+			if b is PhysicsBody2D and b.global_position.distance_to(global_position) < 120.0:
+				add_collision_exception_with(b)
+				pass_through[b] = PASS_FRAMES
+		repeat_hits = 0
+
+func _update_unstuck(delta: float) -> void:
+	for b in pass_through.keys():
+		pass_through[b] -= 1
+		if pass_through[b] <= 0 or not is_instance_valid(b):
+			if is_instance_valid(b): remove_collision_exception_with(b)
+			pass_through.erase(b)
+	if attached_to:
+		watch_time = 0.0
+		return
+	if global_position.distance_to(watch_pos) > 40.0:
+		watch_pos = global_position
+		watch_time = 0.0
+		return
+	watch_time += delta
+	if watch_time > 2.0:
+		watch_time = 0.0
+		velocity = Vector2.UP.rotated(randf_range(-0.6, 0.6)) * speed
+		for b in get_tree().get_nodes_in_group("Bricks"):  # likely wedged in a cluster
+			if b is PhysicsBody2D and b.global_position.distance_to(global_position) < 140.0:
+				add_collision_exception_with(b)
+				pass_through[b] = PASS_FRAMES * 2
+
+## A ball skimming almost horizontally for too long gets bent downward toward
+## the ship, so it can't ping-pong between the walls forever.
+const FLAT_RATIO := 0.3   # |vy| / |v| below this counts as "flat" (~17 degrees)
+const FLAT_TIME := 2.0
+const FLAT_FIX_ANGLE := deg_to_rad(30.0)
+var flat_time := 0.0
+
+func _update_flat(delta: float) -> void:
+	var v := velocity.length()
+	if attached_to or v < 10.0 or abs(velocity.y) >= v * FLAT_RATIO:
+		flat_time = 0.0
+		return
+	flat_time += delta
+	if flat_time >= FLAT_TIME:
+		flat_time = 0.0
+		var sx := 1.0 if velocity.x >= 0.0 else -1.0
+		velocity = Vector2(sx * cos(FLAT_FIX_ANGLE), sin(FLAT_FIX_ANGLE)) * v  # +y is down
+
 func _physics_process(delta: float) -> void:
-	
 	# Hitstop
 	if hitstop_frames > 0:
 		hitstop_frames -= 1
 		if hitstop_frames <= 0:
 			stop_hitstop()
 		return
+	_update_unstuck(delta)  # after hitstop, so pass-through time isn't spent frozen
+	_update_flat(delta)
 	
 	
 	# $VelocityLine.rotation = velocity.angle()
@@ -144,6 +216,7 @@ func _physics_process(delta: float) -> void:
 		# Reset bump boost
 		boost_factor = 1.0
 	elif collision.get_collider().is_in_group("Bricks"):
+		_track_stuck(collision.get_collider())
 		Audio.sfx("brick_hit", -5.0, 0.05)
 		
 		if collision.get_collider().type == collision.get_collider().TYPE.ENERGY or collision.get_collider().type == collision.get_collider().TYPE.EXPLOSIVE:
@@ -162,7 +235,7 @@ func _physics_process(delta: float) -> void:
 	velocity = velocity.limit_length(max_speed)
 	
 	if collision.get_collider().is_in_group("Bricks"):
-		start_hitstop(hitstop_block)
+		if repeat_hits <= 1: start_hitstop(hitstop_block)  # no freeze while escaping an overlap
 		spawn_bounce_particles(collision.get_position(), normal)
 		collision.get_collider().damage(1)
 		emit_signal("hit_block", collision.get_collider())
