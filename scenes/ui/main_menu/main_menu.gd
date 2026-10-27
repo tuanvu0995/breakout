@@ -5,7 +5,9 @@ func _ready():
 	theme = load("res://theme/main_theme.tres")
 	Fx.add_menu_backdrop(self)
 	var ver := Label.new()
-	ver.text = "v" + str(ProjectSettings.get_setting("application/config/version", "0.1.0"))
+	# version actually running: the shipped build, or the OTA patch applied on top
+	var v: String = Ota.effective_version if Ota.effective_version != "" else str(ProjectSettings.get_setting("application/config/version", "0.1.0"))
+	ver.text = "v" + v
 	ver.add_theme_font_size_override("font_size", 20)
 	ver.add_theme_color_override("font_color", Color(Globals.C_WHITE, 0.3))
 	add_child(ver)

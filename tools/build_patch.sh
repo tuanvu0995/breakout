@@ -14,14 +14,14 @@
 # (bumping it means a new full build + a new snapshot).
 #
 # Env: ADMIN_TOKEN (to upload), API (the worker, default: api_url in project.godot = https://bs-api.pixalab.co/v1),
-#      PLATFORMS (default "macos"; any of windows macos linux android), FULL_DOWNLOAD_URL (optional),
+#      PLATFORMS (default "macos windows linux"; any of windows macos linux android), FULL_DOWNLOAD_URL (optional),
 #      GODOT=/path/to/godot. If .script_encryption_key exists, PCKs are encrypted with it.
 # Written for macOS's stock bash 3.2.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 api="${API:-$(sed -n 's/^api_url="\(.*\)"$/\1/p' "$root/project.godot")}"
-platforms="${PLATFORMS:-macos}"
+platforms="${PLATFORMS:-macos windows linux}"
 godot="${GODOT:-$(command -v godot || echo /Applications/Godot.app/Contents/MacOS/Godot)}"
 mode="${1:?usage: build_patch.sh snapshot | <patch_version> [--upload] | announce --upload | revoke <version>}"
 

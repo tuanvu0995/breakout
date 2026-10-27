@@ -3,6 +3,7 @@
 #
 #   tools/release_itch.sh             # build macOS / Windows / Linux, snapshot OTA baseline, push with butler
 #   tools/release_itch.sh --dry-run   # build + snapshot only, no upload
+#   tools/release_itch.sh --force     # rebuild a version that was already released (overwrites its baseline)
 #
 # Version comes from config/version in project.godot (one full build per version).
 # OTA patches for this version are made later with tools/build_patch.sh.
@@ -18,7 +19,13 @@ target="${ITCH_TARGET:-pixalab/brickstellar}"
 platforms="${PLATFORMS:-macos windows linux}"
 godot="${GODOT:-$(command -v godot || echo /Applications/Godot.app/Contents/MacOS/Godot)}"
 dry_run=0
-[ "${1:-}" = "--dry-run" ] && dry_run=1
+force=0
+for a in "$@"; do
+	case "$a" in
+		--dry-run) dry_run=1 ;;
+		--force) force=1 ;;
+	esac
+done
 
 version="$(sed -n 's/^config\/version="\(.*\)"$/\1/p' "$root/project.godot")"
 [ -n "$version" ] || { echo "could not read config/version from project.godot" >&2; exit 1; }
@@ -31,6 +38,17 @@ if [ $dry_run -eq 0 ]; then
 		echo "working tree has uncommitted changes - commit before a release build" >&2
 		exit 1
 	fi
+fi
+
+# A released version's OTA baseline must never change: every patch for it is a
+# delta against it. New content for an already-released version goes out as an
+# OTA patch (tools/build_patch.sh); a new full release bumps config/version.
+if [ -d "$root/build/ota_base/$version" ] && [ $force -eq 0 ] && [ $dry_run -eq 0 ]; then
+	echo "v$version already has an OTA baseline (it was released)." >&2
+	echo "  - small fix for players:  ADMIN_TOKEN=... tools/build_patch.sh <x.y.z> --upload" >&2
+	echo "  - new full release:       bump config/version in project.godot, then run this again" >&2
+	echo "  - really rebuild v$version: add --force (breaks existing patches for it)" >&2
+	exit 1
 fi
 
 echo "==> Brickstellar $version  ($platforms)"
@@ -70,6 +88,10 @@ done
 
 # OTA baseline for this version, always re-taken from this exact commit:
 # patches are deltas against what players actually installed.
+if [ $dry_run -eq 1 ] && [ -d "$root/build/ota_base/$version" ] && [ $force -eq 0 ]; then
+	echo "Dry run: builds in build/release/$version/; released OTA baseline left untouched."
+	exit 0
+fi
 echo "==> OTA baseline ($platforms)"
 rm -rf "$root/build/ota_base/$version"
 PLATFORMS="$platforms" "$root/tools/build_patch.sh" snapshot >/dev/null 2>&1
