@@ -52,15 +52,51 @@ var health_dict = {
 var isDestroyed: bool = false
 var bounce_tween: Tween
 
+## Set by levels before add_child. Keys (all optional): type, size, spin, move_amp,
+## move_freq, phase, orbit_center, orbit_radius, orbit_angle, orbit_speed, blink, face
+var spec: Dictionary = {}
+var t: float = 0.0
+var base_pos: Vector2
+var base_layer: int
+var moving: bool = false
+
 func _ready() -> void:
-	choose_type_random()
-	choose_size_random()
+	if spec.is_empty():
+		choose_type_random()
+		choose_size_random()
+	else:
+		type = spec.get("type", TYPE.ONE)
+		size = spec.get("size", SIZE.SMALL)
+		t = spec.get("phase", 0.0)
+		moving = spec.has("spin") or spec.has("move_amp") or spec.has("orbit_radius") or spec.has("blink")
+	base_pos = position
+	base_layer = collision_layer
 	
 	health = health_dict[type]
 	
 	update_size_visuals()
 	update_type_visuals()
 	
+func _physics_process(delta: float) -> void:
+	if not moving or isDestroyed: return
+	t += delta
+	var pos := base_pos
+	if spec.has("orbit_radius"):
+		var a: float = spec.get("orbit_angle", 0.0) + t * spec.get("orbit_speed", 0.5)
+		pos = spec["orbit_center"] + Vector2.from_angle(a) * spec["orbit_radius"]
+		if spec.get("face", false): rotation = a + PI / 2.0
+	if spec.has("move_amp"):
+		pos += spec["move_amp"] * sin(t * spec.get("move_freq", 1.0))
+	position = pos
+	if spec.has("spin"):
+		rotation += spec["spin"] * delta
+	if spec.has("blink"):
+		# Visible for 65% of the period, fades out, then becomes ghost (no collision)
+		var k: float = fposmod(t, spec["blink"]) / spec["blink"]
+		var shown := k < 0.65
+		collision_layer = base_layer if shown else 0
+		modulate.a = lerp(modulate.a, 1.0 if shown else 0.12, 10.0 * delta)
+
 func choose_type_random() -> void:
 	var rand = randf()
 	# 10% chance for explosives
@@ -84,35 +120,29 @@ func choose_size_random() -> void:
 	else:
 		size = SIZE.SMALL
 
+func brick_color() -> Color:
+	match type:
+		TYPE.ONE: return Globals.C_CORAL
+		TYPE.TWO: return Globals.C_AMBER
+		TYPE.THREE: return Globals.C_VIOLET
+		TYPE.EXPLOSIVE: return Globals.C_RED
+	return Globals.C_CYAN
+
 func update_size_visuals() -> void:
-	match size:
-		SIZE.SMALL:
-			$CollisionShapeSmall.disabled = false
-			$CollisionShapeLong.disabled = true
-			if type == TYPE.EXPLOSIVE or type == TYPE.ENERGY:
-				size_sprite.texture = small_border
-			else:
-				size_sprite.texture = small_full
-		SIZE.LONG:
-			$CollisionShapeSmall.disabled = true
-			$CollisionShapeLong.disabled = false
-			if type == TYPE.EXPLOSIVE or type == TYPE.ENERGY:
-				size_sprite.texture = long_border
-			else:
-				size_sprite.texture = long_full
+	var small := size == SIZE.SMALL
+	$CollisionShapeSmall.disabled = not small
+	$CollisionShapeLong.disabled = small
+	size_sprite.texture = Globals.round_rect_tex(Vector2i(56, 56) if small else Vector2i(119, 56), 12)
 
 func update_type_visuals() -> void:
+	size_sprite.self_modulate = brick_color()
+	type_sprite.self_modulate = Globals.C_DARK if type == TYPE.EXPLOSIVE else Color(1, 1, 1, 0.9)
 	match type:
-		TYPE.ONE:
-			type_sprite.texture = one
-		TYPE.TWO:
-			type_sprite.texture = two
-		TYPE.THREE:
-			type_sprite.texture = three
-		TYPE.EXPLOSIVE:
-			type_sprite.texture = bomb
-		TYPE.ENERGY:
-			type_sprite.texture = energy
+		TYPE.ONE: type_sprite.texture = Globals.pips_tex(1)
+		TYPE.TWO: type_sprite.texture = Globals.pips_tex(2)
+		TYPE.THREE: type_sprite.texture = Globals.pips_tex(3)
+		TYPE.EXPLOSIVE: type_sprite.texture = Globals.circle_tex(26)
+		TYPE.ENERGY: type_sprite.texture = Globals.diamond_tex()
 		
 func bounce() -> void:
 	if bounce_tween and bounce_tween.is_running():
@@ -171,10 +201,11 @@ func give_energy() -> void:
 
 func explode() -> void:
 	spawn_bomb_explosion()
+	Audio.sfx("bomb", 0.0, 0.1)
 	
 	var bodies = explosion_area.get_overlapping_bodies()
 	for body in bodies:
-		if body.is_in_group("Bricks") == false: return
+		if body.is_in_group("Bricks") == false: continue
 		if body.isDestroyed: continue
 		# Damage with a high enough value to make sure
 		# they're destroyed but also trigger any eventual
@@ -183,6 +214,7 @@ func explode() -> void:
 
 func destroy() -> void:
 	spawn_brick_explosion()
+	Audio.sfx("brick_break", -8.0, 0.15)
 	
 	emit_signal("destroyed", self)
 	queue_free()

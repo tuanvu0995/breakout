@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://cuwuybqgqwtn6"
+path="res://.godot/imported/89 - Trial.mp3-fcfeabc0e4403d83b274ca5c23cc3a21.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/loop_musics/89 - Trial.mp3"
+dest_files=["res://.godot/imported/89 - Trial.mp3-fcfeabc0e4403d83b274ca5c23cc3a21.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

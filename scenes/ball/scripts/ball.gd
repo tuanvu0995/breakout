@@ -47,6 +47,10 @@ var hitstop_bomb = 10
 
 func _ready() -> void:
 	randomize()
+	sprite.material = null
+	sprite.texture = Globals.circle_tex(int(sprite.texture.get_width()))
+	$Trail.default_color = Globals.C_CYAN
+	$Trail.gradient = null
 	
 func _process(delta) -> void:
 	color_based_on_velocity()
@@ -177,8 +181,8 @@ func die() -> void:
 
 func color_based_on_velocity() -> void:
 	var val = remap(velocity.length(), speed, max_speed, 0, 1.0)
-	sprite.self_modulate = lerp(Color.WHITE, max_speed_color, val)
-	$Trail.self_modulate = lerp(Color.WHITE, max_speed_color, val)
+	sprite.self_modulate = lerp(Globals.C_WHITE, Globals.C_CORAL, val)
+	$Trail.self_modulate = lerp(Globals.C_WHITE, Globals.C_CORAL, val)
 
 func scale_based_on_velocity() -> void:
 	if animationPlayer.is_playing(): return
@@ -256,6 +260,10 @@ func bump_boost(who) -> void:
 		spawn_bump_timing(Globals.BUMP.EARLY)
 		start_hitstop(hitstop_bump_late_early)
 		who.start_hitstop(hitstop_bump_late_early)
+
+func attract(target: Vector2) -> void:
+	attracted = true
+	attracted_to = target
 
 func launch() -> void:
 	#velocity = (-global_transform.y).rotated(randf_range(-PI/3.0, PI/3.0)) * speed * 6

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://c5ob2qs2tkip4"
+path="res://.godot/imported/20 - Ccc.mp3-0d1d473aadde7c93e810d08b48ac6616.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/loop_musics/20 - Ccc.mp3"
+dest_files=["res://.godot/imported/20 - Ccc.mp3-0d1d473aadde7c93e810d08b48ac6616.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

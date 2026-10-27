@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://caxwimgaa8mto"
+path="res://.godot/imported/40 - Yako.mp3-3daebf8a93f9426ee0d0181f68590cc7.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/loop_musics/40 - Yako.mp3"
+dest_files=["res://.godot/imported/40 - Yako.mp3-3daebf8a93f9426ee0d0181f68590cc7.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

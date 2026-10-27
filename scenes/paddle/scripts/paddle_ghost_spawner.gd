@@ -19,6 +19,6 @@ func _on_timer_timeout():
 	instance.global_position = sprite.global_position
 	instance.rotation = sprite.rotation
 	instance.texture = sprite.texture
-	instance.self_modulate = sprite.self_modulate
+	instance.self_modulate = Color(sprite.self_modulate, 0.6)
 	instance.scale = sprite.scale
 	instance.z_index = 0

@@ -1,8 +1,8 @@
-[gd_scene load_steps=14 format=3 uid="uid://dxkar57dpbiwl"]
+[gd_scene format=3 uid="uid://dxkar57dpbiwl"]
 
-[ext_resource type="Script" path="res://scenes/game/scripts/game.gd" id="1_22x3t"]
-[ext_resource type="Script" path="res://scenes/game/scripts/CameraOrbit.gd" id="2_gsk73"]
-[ext_resource type="Shader" path="res://shaders/pattern.gdshader" id="3_o3shd"]
+[ext_resource type="Script" uid="uid://di83r6q5kbk5y" path="res://scenes/game/scripts/game.gd" id="1_22x3t"]
+[ext_resource type="Script" uid="uid://c4w3dk5k15c0b" path="res://scenes/game/scripts/CameraOrbit.gd" id="2_gsk73"]
+[ext_resource type="Shader" uid="uid://cq8qvsfhjerp6" path="res://shaders/pattern.gdshader" id="3_o3shd"]
 [ext_resource type="Texture2D" uid="uid://b1b3noe7a4hok" path="res://assets/game/pattern.png" id="4_cgq8c"]
 [ext_resource type="PackedScene" uid="uid://cwpy382omhn44" path="res://scenes/paddle/paddle.tscn" id="5_72pyt"]
 [ext_resource type="PackedScene" uid="uid://wk0ub1yi1gdh" path="res://scenes/ball/ball.tscn" id="6_h6rjx"]
@@ -15,38 +15,32 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_i06sl"]
 shader = ExtResource("3_o3shd")
+shader_parameter/pattern = ExtResource("4_cgq8c")
 shader_parameter/speed = 0.3
 shader_parameter/size_scale = 30.0
 shader_parameter/color = Color(0.541176, 0.541176, 0.541176, 1)
-shader_parameter/pattern = ExtResource("4_cgq8c")
 
-[node name="GameBase" type="Node2D"]
+[node name="GameBase" type="Node2D" unique_id=1795938278]
 script = ExtResource("1_22x3t")
 
-[node name="Camera" type="Camera2D" parent="."]
-position = Vector2(958, 544)
-script = ExtResource("2_gsk73")
-dynamic_enabled = true
-dynamic_factor = 0.3
-
-[node name="Pattern" type="ColorRect" parent="."]
+[node name="Pattern" type="ColorRect" parent="." unique_id=495286598]
 material = SubResource("ShaderMaterial_i06sl")
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -1217.0
-offset_top = 612.0
-offset_right = 1783.0
-offset_bottom = 3612.0
+offset_left = -1550.0
+offset_top = 572.0
+offset_right = 1450.0
+offset_bottom = 3572.0
 grow_horizontal = 2
 grow_vertical = 2
 rotation = -0.785398
 
-[node name="Combo" type="Label" parent="."]
-offset_left = 642.0
-offset_top = 312.0
-offset_right = 1285.0
-offset_bottom = 752.0
+[node name="Combo" type="Label" parent="." unique_id=1430170522]
+offset_left = 292.0
+offset_top = 243.0
+offset_right = 935.0
+offset_bottom = 683.0
 theme = ExtResource("12_yuhvk")
 theme_override_colors/font_color = Color(0.858824, 0.611765, 0.631373, 1)
 theme_override_font_sizes/font_size = 100
@@ -54,98 +48,105 @@ text = "Combo"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Paddle" parent="." instance=ExtResource("5_72pyt")]
-position = Vector2(952, 999)
+[node name="Paddle" parent="." unique_id=1037337028 instance=ExtResource("5_72pyt")]
+position = Vector2(607, 1013)
 
-[node name="Ball" parent="." instance=ExtResource("6_h6rjx")]
-position = Vector2(75, 121)
+[node name="Ball" parent="." unique_id=652766614 instance=ExtResource("6_h6rjx")]
+position = Vector2(-270, 135)
 accel = 100.0
 
-[node name="SpawnPos" type="Node" parent="."]
+[node name="SpawnPos" type="Node" parent="." unique_id=726247069]
 
-[node name="Marker2D" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D" type="Marker2D" parent="SpawnPos" unique_id=507470125]
 position = Vector2(189, 85)
 
-[node name="Marker2D2" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D2" type="Marker2D" parent="SpawnPos" unique_id=555314737]
 position = Vector2(335, 155)
 
-[node name="Marker2D3" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D3" type="Marker2D" parent="SpawnPos" unique_id=346147855]
 position = Vector2(327, 352)
 
-[node name="Marker2D4" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D4" type="Marker2D" parent="SpawnPos" unique_id=981419660]
 position = Vector2(167, 278)
 
-[node name="Marker2D5" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D5" type="Marker2D" parent="SpawnPos" unique_id=1921892589]
 position = Vector2(189, 411)
 
-[node name="Marker2D6" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D6" type="Marker2D" parent="SpawnPos" unique_id=1519697083]
 position = Vector2(553, 130)
 
-[node name="Marker2D7" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D7" type="Marker2D" parent="SpawnPos" unique_id=366764207]
 position = Vector2(383, 500)
 
-[node name="Marker2D8" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D8" type="Marker2D" parent="SpawnPos" unique_id=1131850879]
 position = Vector2(339, 634)
 
-[node name="Marker2D9" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D9" type="Marker2D" parent="SpawnPos" unique_id=1992973647]
 position = Vector2(72, 409)
 
-[node name="Marker2D10" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D10" type="Marker2D" parent="SpawnPos" unique_id=2068232478]
 position = Vector2(482, 261)
 
-[node name="Marker2D11" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D11" type="Marker2D" parent="SpawnPos" unique_id=713908826]
 position = Vector2(449, 725)
 
-[node name="Marker2D12" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D12" type="Marker2D" parent="SpawnPos" unique_id=1022302523]
 position = Vector2(104, 697)
 
-[node name="Marker2D13" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D13" type="Marker2D" parent="SpawnPos" unique_id=551179157]
 position = Vector2(557, 629)
 
-[node name="Marker2D14" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D14" type="Marker2D" parent="SpawnPos" unique_id=1394592760]
 position = Vector2(323, 800)
 
-[node name="Marker2D15" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D15" type="Marker2D" parent="SpawnPos" unique_id=299794460]
 position = Vector2(175, 569)
 
-[node name="Marker2D16" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D16" type="Marker2D" parent="SpawnPos" unique_id=639574420]
 position = Vector2(502, 409)
 
-[node name="Marker2D17" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D17" type="Marker2D" parent="SpawnPos" unique_id=328312599]
 position = Vector2(555, 808)
 
-[node name="Marker2D18" type="Marker2D" parent="SpawnPos"]
+[node name="Marker2D18" type="Marker2D" parent="SpawnPos" unique_id=373944608]
 position = Vector2(104, 787)
 
-[node name="Bricks" type="Node" parent="."]
+[node name="Bricks" type="Node" parent="." unique_id=453080799]
 
-[node name="Wall" parent="." instance=ExtResource("7_l2xh2")]
+[node name="Wall" parent="." unique_id=1125352761 instance=ExtResource("7_l2xh2")]
+position = Vector2(5, 27)
 
-[node name="DeathArea" parent="." instance=ExtResource("8_3r1f0")]
+[node name="DeathArea" parent="." unique_id=747222523 instance=ExtResource("8_3r1f0")]
 position = Vector2(-473, 1064)
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=129988806]
 
-[node name="HealthBar" parent="CanvasLayer" instance=ExtResource("9_wdy8j")]
+[node name="HealthBar" parent="CanvasLayer" unique_id=917573464 instance=ExtResource("9_wdy8j")]
 offset_left = 11.0
 offset_top = 4.0
 offset_right = 51.0
 offset_bottom = 44.0
 
-[node name="Score" parent="CanvasLayer" instance=ExtResource("10_qn311")]
-offset_left = 1797.0
-offset_top = 8.0
-offset_right = 1837.0
-offset_bottom = 48.0
+[node name="Score" parent="CanvasLayer" unique_id=1539341654 instance=ExtResource("10_qn311")]
+offset_left = 1107.0
+offset_top = 16.0
+offset_right = 1147.0
+offset_bottom = 56.0
 
-[node name="EnergyBar" parent="CanvasLayer" instance=ExtResource("11_5r8on")]
+[node name="EnergyBar" parent="CanvasLayer" unique_id=1489834656 instance=ExtResource("11_5r8on")]
 offset_left = 7.0
 offset_top = 37.0
 offset_right = 47.0
 offset_bottom = 148.0
 
-[node name="ComboTimer" type="Timer" parent="."]
+[node name="ComboTimer" type="Timer" parent="." unique_id=1463633759]
 one_shot = true
+
+[node name="Camera" type="Camera2D" parent="." unique_id=435070825]
+position = Vector2(682, 528)
+script = ExtResource("2_gsk73")
+dynamic_enabled = true
+dynamic_factor = 0.3
 
 [connection signal="body_entered" from="DeathArea" to="." method="_on_DeathArea_body_entered"]
 [connection signal="timeout" from="ComboTimer" to="." method="_on_combo_timer_timeout"]

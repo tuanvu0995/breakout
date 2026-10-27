@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dugiaslm3jps"
+path="res://.godot/imported/16 - Four Square.mp3-9f8b13e4394eb0d9adcc1db862887a02.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/loop_musics/16 - Four Square.mp3"
+dest_files=["res://.godot/imported/16 - Four Square.mp3-9f8b13e4394eb0d9adcc1db862887a02.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

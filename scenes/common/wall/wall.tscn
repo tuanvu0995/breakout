@@ -7,7 +7,7 @@
 script = ExtResource("1_ig3xg")
 
 [node name="CollisionPolygon" type="CollisionPolygon2D" parent="."]
-polygon = PackedVector2Array(2.08165e-12, 2.08165e-12, 1917, 2.08165e-12, 1917, 1081, 2027, 1078, 2027, -72, -78, -74, -85, 1081, 0, 1081)
+polygon = PackedVector2Array(2.08165e-12, 2.08165e-12, 1356, -5, 1356, 1076, 1447, 1076, 1451, -68, -78, -74, -85, 1081, 0, 1081)
 
 [node name="Polygon2D" type="Polygon2D" parent="."]
 texture_filter = 1
@@ -16,4 +16,4 @@ color = Color(0.94902, 0.827451, 0.788235, 1)
 texture = ExtResource("3_mwp53")
 texture_scale = Vector2(5, 5)
 texture_rotation = 2.79253
-polygon = PackedVector2Array(2.08165e-12, 1079, -454, 1070, -454, -396, 922, -396, 2333, -386, 2343, 1080, 1925, 1079, 1925, -1, 0, 0)
+polygon = PackedVector2Array(2.08165e-12, 1079, -454, 1070, -454, -396, 922, -396, 1661, -393, 1647, 1075, 1353, 1065, 1356, -3, 0, 0)

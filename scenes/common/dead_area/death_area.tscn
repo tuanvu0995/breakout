@@ -3,13 +3,13 @@
 [ext_resource type="PackedScene" uid="uid://bny43udhl3mkh" path="res://scenes/water/water.tscn" id="3_05lux"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_60cwd"]
-size = Vector2(2910, 844)
+size = Vector2(2094, 844)
 
 [node name="DeathArea" type="Area2D"]
 position = Vector2(2.08165e-12, 2.08165e-12)
 
 [node name="CollisionShape" type="CollisionShape2D" parent="."]
-position = Vector2(1452, 471)
+position = Vector2(1044, 471)
 shape = SubResource("RectangleShape2D_60cwd")
 
 [node name="Water" parent="." instance=ExtResource("3_05lux")]

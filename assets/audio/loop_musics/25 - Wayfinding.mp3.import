@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://gni0uyd8vcg"
+path="res://.godot/imported/25 - Wayfinding.mp3-9f827255b48e15c63f4e13e54d9745f3.mp3str"
+
+[deps]
+
+source_file="res://assets/audio/loop_musics/25 - Wayfinding.mp3"
+dest_files=["res://.godot/imported/25 - Wayfinding.mp3-9f827255b48e15c63f4e13e54d9745f3.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
