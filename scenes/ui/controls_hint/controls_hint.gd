@@ -52,7 +52,7 @@ func _process(delta: float) -> void:
 	if not game or not is_instance_valid(game): return
 	pulse += delta
 	# Only shown while the ball waits on the ship, so it never covers the arena in play.
-	var want := 1.0 if game.paddle.ball_attached and not game.paddle.game_over else 0.0
+	var want := 1.0 if Globals.settings["hints"] and game.paddle.ball_attached and not game.paddle.game_over else 0.0
 	modulate.a = move_toward(modulate.a, want, delta * 3.0)
 	var energy: float = game.energy
 	if rows.has("SPACE"):

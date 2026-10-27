@@ -13,7 +13,7 @@ signal hit_block(block)
 @export var accel: float = 20.0
 @export var deccel: float = 1.0
 @export var max_normal_angle: float = 15.0
-@export var max_speed: float = 1200.0
+@export var max_speed: float = 1000.0
 @export var steering_max_speed: float = 1200.0
 @export var steer_force = 110.0
 @export var steer_speed = 300.0
@@ -346,7 +346,8 @@ func attract(target: Vector2) -> void:
 
 func launch() -> void:
 	#velocity = (-global_transform.y).rotated(randf_range(-PI/3.0, PI/3.0)) * speed * 6
-	velocity = -global_transform.y * speed * 7
+	# direction only: the ball node is scaled, so global_transform.y isn't unit length
+	velocity = -global_transform.y.normalized() * speed * 1.3  # brisk launch, eases back to cruise
 	attached_to = null
 	# Trail is hidden when a life is lost; bring it back fresh on every launch
 	# (no stale line from where the ball fell).

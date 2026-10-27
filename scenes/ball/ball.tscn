@@ -135,8 +135,8 @@ scale_curve = SubResource("CurveTexture_2wsth")
 [node name="Ball" type="CharacterBody2D" groups=["Ball"]]
 scale = Vector2(0.2, 0.2)
 script = ExtResource("1_v6i22")
-speed = 600.0
-deccel = 0.8
+speed = 500.0
+deccel = 1.2
 max_speed_color = Color(1, 0.368627, 0.301961, 1)
 
 [node name="Trail" type="Line2D" parent="."]

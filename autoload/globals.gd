@@ -216,12 +216,57 @@ func _ready() -> void:
 		skin_index = cfg.get_value("game", "skin", 0)
 		best_times = cfg.get_value("game", "best_times", {})
 		stars = cfg.get_value("game", "stars", {})
+		for k in settings.keys():
+			settings[k] = cfg.get_value("settings", k, settings[k])
+	apply_settings()
 
-var volume: float = 0.8
+var volume: float = 0.8  # master
+
+## Player settings (saved in [settings]). Change them through set_setting().
+var settings := {
+	"music": 0.8, "sfx": 0.9,
+	"fullscreen": false, "vsync": true,
+	"shake": 1.0,          # 0 off, 0.5 low, 1 full
+	"popups": true,        # floating score numbers
+	"hints": true,         # bottom-left controls helper
+}
 
 func set_volume(v: float) -> void:
 	volume = v
 	AudioServer.set_bus_volume_db(0, linear_to_db(max(v, 0.0001)))
+
+func set_setting(key: String, value) -> void:
+	settings[key] = value
+	apply_settings()
+	save()
+
+func _bus(bus_name: String) -> int:
+	var i := AudioServer.get_bus_index(bus_name)
+	if i == -1:
+		AudioServer.add_bus()
+		i = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(i, bus_name)
+		AudioServer.set_bus_send(i, "Master")
+	return i
+
+func apply_settings() -> void:
+	AudioServer.set_bus_volume_db(_bus("Music"), linear_to_db(max(settings["music"], 0.0001)))
+	AudioServer.set_bus_volume_db(_bus("SFX"), linear_to_db(max(settings["sfx"], 0.0001)))
+	if DisplayServer.get_name() != "headless":
+		var want_fs: bool = settings["fullscreen"]
+		var is_fs := DisplayServer.window_get_mode() in [DisplayServer.WINDOW_MODE_FULLSCREEN, DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN]
+		if want_fs != is_fs:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if want_fs else DisplayServer.WINDOW_MODE_WINDOWED)
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if settings["vsync"] else DisplayServer.VSYNC_DISABLED)
+
+## Wipe campaign progress (custom levels and the leaderboard account are kept).
+func reset_progress() -> void:
+	high_score = 0
+	max_level = 1
+	skin_index = 0
+	stars = {}
+	best_times = {}
+	save()
 
 func save() -> void:
 	var cfg := ConfigFile.new()
@@ -231,6 +276,8 @@ func save() -> void:
 	cfg.set_value("game", "skin", skin_index)
 	cfg.set_value("game", "best_times", best_times)
 	cfg.set_value("game", "stars", stars)
+	for k in settings.keys():
+		cfg.set_value("settings", k, settings[k])
 	cfg.save(SAVE_PATH)
 
 ## Returns true if it's a new record.

@@ -795,7 +795,8 @@ func on_brick_destroyed(which) -> void:
 	var pts: int = score_brick_destroyed * combo * (2 if speed_mult > 1.0 else 1)
 	score += pts
 	var hot: Color = [Globals.C_WHITE, Globals.C_AMBER, Globals.C_CORAL, Globals.C_VIOLET][min(combo / 4, 3)]
-	Fx.popup(self, which.global_position, "+%d" % pts, hot, 30 + min(combo, 10) * 2)
+	if Globals.settings["popups"]:
+		Fx.popup(self, which.global_position, "+%d" % pts, hot, 30 + min(combo, 10) * 2)
 	Globals.camera.shake(0.15, 8, 6)
 	Globals.stats["score"] = score
 	score_ui.set_score(score)

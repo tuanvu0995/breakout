@@ -116,7 +116,8 @@ func stop_tracking() -> void:
 
 # Kick off a new screenshake effect.
 func shake(duration, frequency, amplitude):
-	if frequency == 0: return
+	amplitude *= Globals.settings.get("shake", 1.0)  # player setting: off / low / full
+	if frequency == 0 or amplitude <= 0.0: return
 	# Initialize variables.
 	_duration = duration
 	_timer = duration

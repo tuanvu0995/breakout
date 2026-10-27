@@ -40,20 +40,8 @@ func _ready() -> void:
 	_button(v, "MAIN MENU", Globals.C_WALL, Globals.C_WHITE, func(): _leave("res://scenes/ui/main_menu/main_menu.tscn"))
 	v.add_child(_gap(6))
 
-	var vol_row := HBoxContainer.new()
-	vol_row.add_theme_constant_override("separation", 20)
-	var vl := _label(vol_row, "VOLUME", 26, Color(Globals.C_WHITE, 0.7))
-	vl.custom_minimum_size.x = 160
-	var slider := HSlider.new()
-	slider.max_value = 1.0
-	slider.step = 0.05
-	slider.value = Globals.volume
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	slider.value_changed.connect(func(x): Globals.set_volume(x); Audio.sfx("ui_focus", -10.0))
-	slider.drag_ended.connect(func(_c): Globals.save())
-	vol_row.add_child(slider)
-	v.add_child(vol_row)
+	_button(v, "SETTINGS", Globals.C_WALL, Globals.C_WHITE, func():
+		add_child(preload("res://scenes/ui/settings/settings_screen.gd").new()))
 	_label(v, "Esc to resume", 22, Color(Globals.C_WHITE, 0.35))
 
 	Audio.wire_buttons(card)

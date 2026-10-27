@@ -230,15 +230,6 @@ func select(level: int) -> void:
 	if dialog: dialog.queue_free()
 	var t: int = Levels.theme_index(level)
 	var th: Dictionary = Levels.theme_of(level)
-	var layout := Levels.build(level)
-	var moving := {"orbit": 0, "move": 0, "spin": 0, "blink": 0}
-	for item in layout:
-		var sp: Dictionary = item["spec"]
-		if sp.has("orbit_radius"): moving["orbit"] += 1
-		if sp.has("move_amp"): moving["move"] += 1
-		if sp.has("spin"): moving["spin"] += 1
-		if sp.has("blink"): moving["blink"] += 1
-	var width := int(round(Levels.half_width(level, layout) / Levels.FULL_HALF_WIDTH * 100))
 
 	# dim overlay, click outside closes
 	dialog = ColorRect.new()
@@ -253,7 +244,7 @@ func select(level: int) -> void:
 	sb.set_corner_radius_all(28)
 	sb.set_content_margin_all(40)
 	card.add_theme_stylebox_override("panel", sb)
-	card.custom_minimum_size = Vector2(820, 0)
+	card.custom_minimum_size = Vector2(720, 0)
 	dialog.add_child(card)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 16)
@@ -261,28 +252,6 @@ func select(level: int) -> void:
 
 	_label(v, ("FINAL QUEST" if Levels.is_final(level) else th["name"] + "  -  QUEST %d" % level), 52, Globals.C_AMBER)
 	_label(v, "World %d  -  Stage %d of %d" % [Levels.world_of(level) + 1, Levels.stage_of(level) + 1, Levels.STAGES], 28, th["wall"].lightened(0.5))
-	var tip := _label(v, "The Architect. Every form you have fought, at once." if Levels.is_final(level) else THEME_TIPS[t], 28, Globals.C_WHITE)
-	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-
-	var stats := GridContainer.new()
-	stats.columns = 2
-	stats.add_theme_constant_override("h_separation", 40)
-	stats.add_theme_constant_override("v_separation", 8)
-	var best := Globals.best_time(level)
-	var motion := []
-	for k in ["orbit", "move", "spin", "blink"]:
-		if moving[k] > 0: motion.append("%s %d" % [{"orbit": "ORBIT", "move": "WAVE", "spin": "SPIN", "blink": "PHANTOM"}[k], moving[k]])
-	for pair in [
-		["BRICKS", str(layout.size())],
-		["MOVING", ", ".join(motion) if motion else "none"],
-		["ARENA WIDTH", "%d%%" % width],
-		["STATUS", "CLEARED" if level < Globals.max_level else "NEW"],
-		["YOUR BEST", Globals.format_time(best) if best > 0.0 else "--"],
-	]:
-		_label(stats, pair[0], 26, Color(Globals.C_WHITE, 0.55))
-		_label(stats, pair[1], 26, Globals.C_CYAN if pair[0] == "YOUR BEST" else Globals.C_WHITE)
-	v.add_child(stats)
-
 	# star goals
 	var par := Levels.par_time(level)
 	var have := Globals.get_stars(level)
@@ -305,7 +274,10 @@ func select(level: int) -> void:
 	var boss: Dictionary = Levels.boss_of(level)
 	if not boss.is_empty():
 		_label(v, "BOSS:  " + boss["name"], 28, boss["color"])
-	var online_rank := _label(v, "", 26, Globals.C_AMBER)
+	# one compact line: your best time, then your online rank once it loads
+	var best := Globals.best_time(level)
+	var best_text := ("BEST  " + Globals.format_time(best)) if best > 0.0 else ""
+	var online_rank := _label(v, best_text, 24, Globals.C_CYAN)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	var play := _dialog_button(row, "PLAY", Globals.C_AMBER, Globals.C_DARK, func(): start(selected))
@@ -328,10 +300,10 @@ func select(level: int) -> void:
 		var d := await Leaderboard.board(level, 1)
 		if selected == level and is_instance_valid(online_rank) and d.get("ok", false):
 			var me = d.get("me")
+			var rank_text := ""
 			if me is Dictionary and me.get("rank") != null:
-				online_rank.text = "ONLINE  #%d of %d" % [int(me["rank"]), int(d["total"])]
-			else:
-				online_rank.text = "%d pilots on the board" % int(d["total"])
+				rank_text = "ONLINE  #%d / %d" % [int(me["rank"]), int(d["total"])]
+			online_rank.text = "      ".join([best_text, rank_text].filter(func(x): return x != ""))
 
 ## Row of 3 star icons, `n` lit. Positioned in parent space, centered horizontally on the tile.
 func star_row(n: int, icon: int, pos: Vector2) -> HBoxContainer:

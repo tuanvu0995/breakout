@@ -19,10 +19,12 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS  # keep music + UI sounds while paused
 	for i in 2:
 		var p := AudioStreamPlayer.new()
+		p.bus = "Music"  # buses are created by Globals (earlier autoload)
 		add_child(p)
 		_music.append(p)
 	for i in POOL_SIZE:
 		var p := AudioStreamPlayer.new()
+		p.bus = "SFX"
 		add_child(p)
 		_pool.append(p)
 	for f in DirAccess.get_files_at("res://assets/audio/sfx/"):

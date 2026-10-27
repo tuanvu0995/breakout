@@ -1,6 +1,5 @@
 extends Control
 
-var volume_slider: HSlider
 
 func _ready():
 	theme = load("res://theme/main_theme.tres")
@@ -32,16 +31,6 @@ func _ready():
 	$MarginContainer/VBoxContainer.move_child(best, 0)
 	$MarginContainer/VBoxContainer.add_child(title)
 	$MarginContainer/VBoxContainer.move_child(title, 0)
-	volume_slider = HSlider.new()
-	volume_slider.max_value = 1.0
-	volume_slider.step = 0.05
-	volume_slider.value = Globals.volume
-	volume_slider.custom_minimum_size = Vector2(250, 30)
-	volume_slider.visible = false
-	volume_slider.value_changed.connect(func(v): Globals.set_volume(v); Globals.save())
-	$MarginContainer/VBoxContainer.add_child(volume_slider)
-	$MarginContainer/VBoxContainer.move_child(volume_slider, $MarginContainer/VBoxContainer/Options.get_index() + 1)
-
 	var create := Button.new()
 	create.text = "CREATE"
 	create.add_theme_font_size_override("font_size", 48)
@@ -112,8 +101,7 @@ func _on_play_pressed():
 	get_tree().change_scene_to_file("res://scenes/ui/level_select/level_select.tscn")
 
 func _on_options_pressed():
-	volume_slider.visible = not volume_slider.visible
-	if volume_slider.visible: volume_slider.grab_focus()
+	add_child(preload("res://scenes/ui/settings/settings_screen.gd").new())
 
 func _on_credit_pressed():
 	var vb := $MarginContainer/VBoxContainer
