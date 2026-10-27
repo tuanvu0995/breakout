@@ -130,6 +130,22 @@ func skin_unlocked(i: int) -> bool:
 	if sk.has("score"): return high_score >= sk["score"]
 	return max_level >= sk["unlock"]
 
+## Stars per level (0-3), saved locally.
+var stars := {}
+
+func get_stars(level: int) -> int:
+	return int(stars.get(str(level), 0))
+
+func submit_stars(level: int, n: int) -> void:
+	if n > get_stars(level):
+		stars[str(level)] = n
+		save()
+
+func total_stars() -> int:
+	var t := 0
+	for v in stars.values(): t += int(v)
+	return t
+
 ## Best clear time per level (seconds), saved locally.
 var best_times := {}
 
@@ -188,6 +204,7 @@ func _ready() -> void:
 		max_level = cfg.get_value("game", "max_level", 1)
 		skin_index = cfg.get_value("game", "skin", 0)
 		best_times = cfg.get_value("game", "best_times", {})
+		stars = cfg.get_value("game", "stars", {})
 
 var volume: float = 0.8
 
@@ -202,6 +219,7 @@ func save() -> void:
 	cfg.set_value("game", "max_level", max_level)
 	cfg.set_value("game", "skin", skin_index)
 	cfg.set_value("game", "best_times", best_times)
+	cfg.set_value("game", "stars", stars)
 	cfg.save(SAVE_PATH)
 
 ## Returns true if it's a new record.

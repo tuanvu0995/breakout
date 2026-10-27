@@ -11,6 +11,7 @@ func _ready() -> void:
 	bg.color = Globals.C_BG
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	Fx.add_menu_backdrop(self, 1)
 
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", 14)
@@ -25,9 +26,24 @@ func _ready() -> void:
 	head.add_child(back)
 	var title := Label.new()
 	title.text = "QUESTS   %d / %d" % [min(Globals.max_level - 1, Levels.COUNT), Levels.COUNT]
+	var total := HBoxContainer.new()
+	total.add_theme_constant_override("separation", 8)
+	var ic := TextureRect.new()
+	ic.texture = BrickShapes.texture("star")
+	ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	ic.custom_minimum_size = Vector2(40, 40)
+	ic.modulate = Globals.C_AMBER
+	total.add_child(ic)
+	var tl := Label.new()
+	tl.text = "%d / %d" % [Globals.total_stars(), Levels.COUNT * 3]
+	tl.add_theme_font_size_override("font_size", 36)
+	tl.add_theme_color_override("font_color", Globals.C_AMBER)
+	total.add_child(tl)
 	title.add_theme_font_size_override("font_size", 48)
 	title.add_theme_color_override("font_color", Globals.C_AMBER)
 	head.add_child(title)
+	head.add_child(total)
 	root.add_child(head)
 
 	for t in Levels.THEMES.size():
@@ -74,14 +90,16 @@ func make_tile(level: int, th: Dictionary) -> Button:
 		b.add_theme_stylebox_override(state, sb)
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
 		b.add_theme_color_override(c, fg)
+	var is_boss := not Levels.boss_of(level).is_empty()
 	var sub := ""
-	if cleared:
-		var best := Globals.best_time(level)
-		sub = Globals.format_time(best) if best > 0.0 else "CLEAR"
-	elif current:
-		sub = "PLAY"
+	if current: sub = "BOSS" if is_boss else "PLAY"
+	elif not cleared and is_boss: sub = "BOSS"
 	b.text = str(level) + ("\n" + sub if sub != "" else "")
-	if sub != "": b.add_theme_font_size_override("font_size", 30)
+	b.add_theme_font_size_override("font_size", 30 if sub != "" else 36)
+	if cleared:
+		# number on top, earned stars underneath
+		b.text = str(level) + "\n "
+		b.add_child(star_row(Globals.get_stars(level), 22, Vector2(0, TILE.y - 40)))
 	if locked:
 		b.disabled = true
 		b.text = ""
@@ -177,6 +195,28 @@ func select(level: int) -> void:
 		_label(stats, pair[1], 26, Globals.C_CYAN if pair[0] == "YOUR BEST" else Globals.C_WHITE)
 	v.add_child(stats)
 
+	# star goals
+	var par := Levels.par_time(level)
+	var have := Globals.get_stars(level)
+	var goals := VBoxContainer.new()
+	goals.add_theme_constant_override("separation", 6)
+	for i in 3:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		var ic := TextureRect.new()
+		ic.texture = BrickShapes.texture("star")
+		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		ic.custom_minimum_size = Vector2(30, 30)
+		ic.modulate = Globals.C_AMBER if i < have else Color(Globals.C_WHITE, 0.2)
+		row.add_child(ic)
+		var goal: String = ["CLEAR THE QUEST", "FINISH UNDER %s" % Globals.format_time(par).trim_suffix(".00"), "LOSE NO LIFE"][i]
+		_label(row, goal, 24, Globals.C_WHITE if i < have else Color(Globals.C_WHITE, 0.6))
+		goals.add_child(row)
+	v.add_child(goals)
+	var boss: Dictionary = Levels.boss_of(level)
+	if not boss.is_empty():
+		_label(v, "BOSS:  " + boss["name"], 28, boss["color"])
 	var online_rank := _label(v, "", 26, Globals.C_AMBER)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
@@ -204,6 +244,23 @@ func select(level: int) -> void:
 				online_rank.text = "ONLINE  #%d of %d" % [int(me["rank"]), int(d["total"])]
 			else:
 				online_rank.text = "%d pilots on the board" % int(d["total"])
+
+## Row of 3 star icons, `n` lit. Positioned in parent space, centered horizontally on the tile.
+func star_row(n: int, icon: int, pos: Vector2) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 4)
+	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for i in 3:
+		var t := TextureRect.new()
+		t.texture = BrickShapes.texture("star")
+		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		t.custom_minimum_size = Vector2(icon, icon)
+		t.modulate = Globals.C_AMBER if i < n else Color(Globals.C_DARK, 0.6)
+		t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.add_child(t)
+	h.position = pos + Vector2((TILE.x - icon * 3 - 8) / 2.0, 0)
+	return h
 
 func _dialog_button(parent: Node, text: String, bg: Color, fg: Color, cb: Callable) -> Button:
 	var b := Button.new()

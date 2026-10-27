@@ -2,7 +2,6 @@ extends Node2D
 
 class_name GameManager
 
-@export var game_over_scene: PackedScene = preload("res://scenes/ui/game_over/game_over.tscn")
 @export var brick_scene: PackedScene = preload("res://scenes/brick/brick.tscn")
 @export var block_energy: int = 10
 @export var energy_block_energy: int = 100
@@ -49,6 +48,8 @@ func _ready():
 	ball.attached_to = paddle.launch_point
 	paddle.ball_attached = ball
 	paddle.ball = ball
+	balls = [ball]
+	_wire_ball(ball)
 	
 	for brick in get_tree().get_nodes_in_group("Bricks"):
 		brick.energy_brick_destroyed.connect(on_energy_brick_destroyed)
@@ -72,11 +73,85 @@ func level_ball_speed() -> float:
 func set_fast(on: bool) -> void:
 	fast_time = FAST_TIME if on else 0.0
 	var mult := 2.0 if on else 1.0
-	ball.speed = level_ball_speed() * mult
-	ball.max_speed = base_ball_max_speed * mult
-	if on: ball.velocity *= 2.0
+	for b in balls:
+		b.speed = level_ball_speed() * mult
+		b.max_speed = base_ball_max_speed * mult
+		if on: b.velocity *= 2.0
+
+## EXPAND / SHRINK pickups move the side walls for a while.
+const ARENA_TIME := 12.0
+const ARENA_STEP := 130.0
+const ARENA_MIN := 360.0
+var level_half_width := 678.0
+var arena_time := 0.0
+
+func resize_arena(grow: bool) -> void:
+	var hw: float = clamp(level_half_width + (ARENA_STEP if grow else -ARENA_STEP), ARENA_MIN, Levels.FULL_HALF_WIDTH)
+	if is_equal_approx(hw, level_half_width):
+		flash_text("ARENA AT LIMIT")
+		return
+	arena_time = ARENA_TIME
+	set_field_width(hw, Levels.theme_of(level)["wall"])
+	Globals.camera.shake(0.3, 14, 10)
+	Audio.sfx("dash", -4.0, 0.0, 0.7 if grow else 1.3)
+
+## Keep ball, paddle and barrier inside the (possibly moving) side walls.
+func keep_inside_arena() -> void:
+	var left: float = Levels.CX - backdrop.half_width
+	var right: float = Levels.CX + backdrop.half_width
+	var pad: float = paddle.get_node("CollisionShape").shape.size.x * paddle.scale.x / 2.0 + 4.0
+	paddle.position.x = clamp(paddle.position.x, left + pad, right - pad)
+	for b in balls:
+		if b == paddle.ball_attached: continue
+		var r := 20.0
+		if b.global_position.x < left + r:
+			b.global_position.x = left + r
+			b.velocity.x = abs(b.velocity.x)
+		elif b.global_position.x > right - r:
+			b.global_position.x = right - r
+			b.velocity.x = -abs(b.velocity.x)
+	if is_instance_valid(barrier): barrier.resize(backdrop.half_width)
+
+# ---------------------------------------------------------------- multiball
+
+const BallScene = preload("res://scenes/ball/ball.tscn")
+const MAX_BALLS := 6
+var balls: Array = []
+
+func _wire_ball(b: Node) -> void:
+	b.hit_block.connect(_on_ball_hit_block)  # energy + touch score per ball hit
+
+## Every ball in play splits into three (fanned out), up to MAX_BALLS.
+func split_balls() -> void:
+	if paddle.ball_attached: paddle.launch_ball()
+	for src in balls.duplicate():
+		for angle in [-0.4, 0.4]:
+			if balls.size() >= MAX_BALLS: return
+			var b = BallScene.instantiate()
+			add_child(b)
+			b.global_position = src.global_position
+			b.speed = src.speed
+			b.max_speed = src.max_speed
+			b.attached_to = null
+			var v: Vector2 = src.velocity if src.velocity.length() > 10.0 else Vector2.UP * src.speed
+			b.velocity = v.rotated(angle)
+			_wire_ball(b)
+			balls.append(b)
+			Fx.flash(self, b.global_position, Globals.C_VIOLET, 30)
+
+func clear_extra_balls() -> void:
+	for b in balls:
+		if b != ball: b.queue_free()
+	balls = [ball]
 
 func _process(delta) -> void:
+	keep_inside_arena()
+	update_boss(delta)
+	if arena_time > 0.0:
+		arena_time -= delta
+		if arena_time <= 0.0:
+			set_field_width(level_half_width, Levels.theme_of(level)["wall"])
+			flash_text("ARENA RESTORED")
 	if fast_time > 0.0:
 		fast_time -= delta
 		if fast_time <= 0.0:
@@ -98,12 +173,19 @@ func layout_bricks() -> void:
 	if Globals.custom_level.is_empty() and level <= Levels.COUNT:
 		Leaderboard.start(level)
 	var layout: Array = Globals.custom_level if not Globals.custom_level.is_empty() else Levels.build(level)
-	set_field_width(Levels.half_width(level, layout), theme["wall"])
+	lives_lost = 0
+	boss = null
+	boss_attack = 3.0
+	level_half_width = Levels.half_width(level, layout)
+	arena_time = 0.0
+	set_field_width(level_half_width, theme["wall"])
 	for item in layout:
 		var b = add_brick(brick_container, item["pos"], item["spec"])
 		# pop-in, staggered
+		if b.is_boss: boss = b
+		var target_scale: Vector2 = b.scale
 		b.scale = Vector2.ZERO
-		create_tween().tween_property(b, "scale", Vector2.ONE, 0.35) \
+		create_tween().tween_property(b, "scale", target_scale, 0.35) \
 			.set_delay(0.008 * bricks.size()).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 var side_walls: Array = []
@@ -157,6 +239,7 @@ func remove_all_bricks() -> void:
 		brick.queue_free()
 
 func reset_and_attach_ball() -> void:
+	clear_extra_balls()
 	ball.velocity = Vector2.ZERO
 	ball.attached_to = paddle.launch_point
 	ball.appear()
@@ -213,6 +296,10 @@ func apply_flat_style() -> void:
 	add_child(backdrop)
 	move_child(backdrop, $Pattern.get_index() + 1)
 	# outer frame: left, right and top bands of the static wall polygon (wall-local coords)
+	var hint := preload("res://scenes/ui/controls_hint/controls_hint.gd").new()
+	hint.game = self
+	hint.position = Vector2(32, 1080 - 32 - (150 if not DisplayServer.is_touchscreen_available() else 112))
+	$CanvasLayer.add_child(hint)
 	frame_decor = WallDecor.new()
 	frame_decor.rects = [Rect2(-460, -400, 460, 1500), Rect2(1356, -400, 400, 1500), Rect2(0, -400, 1356, 400)]
 	$Wall.add_child(frame_decor)
@@ -248,7 +335,14 @@ func next_level() -> void:
 			Fx.popup(self, Vector2(Levels.CX, 520), "BEST TIME %s" % Globals.format_time(clear_time), Globals.C_CYAN, 44)
 		Leaderboard.submit(level, clear_time, score)
 	Audio.sfx("level_clear", -2.0)
-	await get_tree().create_timer(1.5).timeout
+	var wait := 1.5
+	if Globals.custom_level.is_empty() and level <= Levels.COUNT:
+		var par := Levels.par_time(level)
+		var got := [true, time <= par, lives_lost == 0]
+		Globals.submit_stars(level, got.count(true))
+		show_stars(got, par)
+		wait = 3.0
+	await get_tree().create_timer(wait).timeout
 	if not Globals.custom_level.is_empty():
 		get_tree().change_scene_to_file("res://scenes/editor/level_editor.tscn")
 		return
@@ -267,6 +361,125 @@ func next_level() -> void:
 		flash_text("ALL 30 CLEARED!  LOOP 2")
 	else:
 		flash_text(Levels.title_of(level))
+
+var lives_lost := 0
+
+## Three stars pop in one by one: CLEAR / UNDER PAR / NO LIFE LOST.
+func show_stars(got: Array, par: float) -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 15
+	add_child(layer)
+	var captions := ["CLEAR", "UNDER %s" % Globals.format_time(par).trim_suffix(".00"), "NO LIFE LOST"]
+	for i in 3:
+		var x := 960.0 + (i - 1) * 190.0
+		var star := Sprite2D.new()
+		star.texture = BrickShapes.texture("star")
+		star.position = Vector2(x, 380 - (20 if i == 1 else 0))
+		star.modulate = Globals.C_AMBER if got[i] else Color(Globals.C_WHITE, 0.15)
+		star.scale = Vector2.ZERO
+		layer.add_child(star)
+		var cap := Label.new()
+		cap.text = captions[i]
+		cap.theme = load("res://theme/main_theme.tres")
+		cap.size = Vector2(240, 30)
+		cap.position = Vector2(x - 120, 460)
+		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cap.add_theme_font_size_override("font_size", 20)
+		cap.add_theme_color_override("font_color", Globals.C_WHITE if got[i] else Color(Globals.C_WHITE, 0.35))
+		cap.modulate.a = 0.0
+		layer.add_child(cap)
+		var tw := create_tween()
+		tw.tween_interval(0.35 + i * 0.35)
+		tw.tween_callback(func():
+			if got[i]:
+				Audio.sfx("powerup", -4.0, 0.0, 1.0 + i * 0.12)
+				Fx.burst(self, star.position, Globals.C_AMBER, 14, 380.0)
+		)
+		tw.tween_property(star, "scale", Vector2.ONE * (2.3 if got[i] else 1.8), 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(cap, "modulate:a", 1.0, 0.2)
+	var out := create_tween()
+	out.tween_interval(2.7)
+	out.tween_property(layer, "offset:y", -40.0, 0.25)
+	out.tween_callback(layer.queue_free)
+
+# ---------------------------------------------------------------- boss
+
+const Debris = preload("res://scenes/effects/boss_debris.gd")
+var boss: Node2D
+var boss_attack := 3.0
+var boss_bar: Control
+
+func update_boss(delta: float) -> void:
+	var alive: bool = is_instance_valid(boss) and not boss.isDestroyed
+	if alive and boss_bar == null: _build_boss_bar()
+	if boss_bar:
+		boss_bar.visible = alive
+		if alive:
+			boss_bar.get_node("Bar").value = boss.health / boss.max_health * 100.0
+	if not alive or not started: return
+	boss_attack -= delta
+	if boss_attack <= 0.0 and boss.collision_layer != 0:
+		# attacks speed up as the boss loses health
+		boss_attack = lerp(1.4, 3.0, boss.health / boss.max_health)
+		var d := Debris.new()
+		d.color = boss.spec.get("color", Globals.C_RED)
+		d.hit.connect(on_debris_hit)
+		add_child(d)
+		d.global_position = boss.global_position + Vector2(0, 60)
+
+func _build_boss_bar() -> void:
+	boss_bar = VBoxContainer.new()
+	boss_bar.position = Vector2(960 - 360, 150)
+	boss_bar.custom_minimum_size = Vector2(720, 0)
+	var name_lbl := Label.new()
+	name_lbl.text = boss.spec.get("name", "BOSS")
+	name_lbl.theme = load("res://theme/main_theme.tres")
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.add_theme_font_size_override("font_size", 26)
+	name_lbl.add_theme_color_override("font_color", boss.spec.get("color", Globals.C_RED))
+	boss_bar.add_child(name_lbl)
+	var bar := ProgressBar.new()
+	bar.name = "Bar"
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(720, 16)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(Globals.C_DARK, 0.7)
+	bg.set_corner_radius_all(8)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = boss.spec.get("color", Globals.C_RED)
+	fill.set_corner_radius_all(8)
+	bar.add_theme_stylebox_override("background", bg)
+	bar.add_theme_stylebox_override("fill", fill)
+	boss_bar.add_child(bar)
+	$CanvasLayer.add_child(boss_bar)
+	flash_text("BOSS: " + name_lbl.text)
+
+func on_debris_hit() -> void:
+	var tier: String = paddle.add_gun_level(-1)
+	paddle.start_hitstop(8)
+	Globals.camera.shake(0.4, 20, 14)
+	Audio.sfx("life_lost", -6.0)
+	flash_text("HIT!  GUN: " + tier)
+
+func boss_defeated(b: Node2D) -> void:
+	var pos: Vector2 = b.global_position
+	var col: Color = b.spec.get("color", Globals.C_RED)
+	for i in 5:
+		var off := Vector2(randf_range(-90, 90), randf_range(-70, 70))
+		Fx.burst(self, pos + off, col, 30, 800.0, 16.0)
+		Fx.ring(self, pos + off, [col, Globals.C_WHITE, Globals.C_AMBER][i % 3], 260 + i * 40, 0.6)
+	Fx.flash(self, pos, Globals.C_WHITE, 260, 0.35)
+	Audio.sfx("bomb", 2.0)
+	Globals.camera.shake(1.2, 30, 24)
+	score += 5000
+	score_ui.set_score(score)
+	Fx.popup(self, pos, "BOSS DOWN  +5000", Globals.C_AMBER, 56)
+	for d in get_children():
+		if d is Debris: d.queue_free()
+	# brief slow motion for the finishing blow
+	Engine.time_scale = 0.25
+	await get_tree().create_timer(0.6, true, false, true).timeout
+	Engine.time_scale = 1.0
 
 func spawn_powerup(pos: Vector2) -> void:
 	var p := PowerUp.new()
@@ -288,14 +501,24 @@ func on_powerup_collected(kind: int) -> void:
 		PowerUp.KIND.BARRIER:
 			add_barrier()
 			flash_text("BARRIER  %ds" % int(Barrier.DURATION))
+		PowerUp.KIND.EXPAND:
+			resize_arena(true)
+			flash_text("WIDE ARENA  %ds" % int(ARENA_TIME))
+		PowerUp.KIND.SHRINK:
+			resize_arena(false)
+			score += 400  # risk reward (+100 below = 500)
+			flash_text("TIGHT ARENA  +500")
 		PowerUp.KIND.LIFE:
 			health = min(health + 1, 3)
 			health_bar.set_health(health)
 			flash_text("+1 LIFE")
 		PowerUp.KIND.SLOW:
 			if fast_time > 0.0: set_fast(false)
-			ball.velocity *= 0.6
+			for b in balls: b.velocity *= 0.6
 			flash_text("SLOW")
+		PowerUp.KIND.MULTI:
+			split_balls()
+			flash_text("MULTIBALL x%d" % balls.size())
 		PowerUp.KIND.FAST:
 			set_fast(true)
 			flash_text("FAST x2  -  POINTS x2")
@@ -374,18 +597,22 @@ func flash_text(text: String) -> void:
 	Fx.punch(combo_lbl, 0.3, 0.4)
 	combo_timer.start()
 
+const GameOverDialog = preload("res://scenes/ui/game_over/game_over_dialog.gd")
+
 func show_game_over() -> void:
 	Audio.stop_music(0.5)
 	Audio.sfx("game_over")
-	var instance = game_over_scene.instantiate()
-	instance.score = score
-	instance.level = level
-	instance.new_record = Globals.submit_score(score)
-	$CanvasLayer.add_child(instance)
-	instance.retry.connect(on_game_over_retry)
+	var d := GameOverDialog.new()
+	d.score = score
+	d.level = level
+	d.new_record = Globals.submit_score(score)
+	d.best = Globals.high_score
+	d.level_title = "CUSTOM LEVEL" if not Globals.custom_level.is_empty() else Levels.title_of(level)
+	add_child(d)
 
 ### SIGNALS ###
 func on_brick_destroyed(which) -> void:
+	if which.is_boss: boss_defeated(which)
 	bricks.erase(which)
 	bricks_to_destroy.erase(which)
 	if randf() < POWERUP_CHANCE:
@@ -412,7 +639,7 @@ func on_brick_destroyed(which) -> void:
 
 func _on_ball_hit_block(block) -> void:
 	add_energy(block_energy)
-	if block._destroyed: return
+	if not is_instance_valid(block) or block.isDestroyed: return
 	combo += 1
 	show_combo(combo)
 	combo_timer.start()
@@ -424,7 +651,17 @@ func on_energy_brick_destroyed() -> void:
 	add_energy(energy_block_energy)
 
 func _on_DeathArea_body_entered(body: Node) -> void:
-	if not body.is_in_group("Ball"): return
+	if not body.is_in_group("Ball") or paddle.game_over: return
+	if balls.size() > 1:
+		# one of several balls fell: no life lost, promote another as the main ball
+		balls.erase(body)
+		if body == ball:
+			ball = balls[0]
+			paddle.ball = ball
+			Globals.camera.objects = [ball, paddle]
+		body.queue_free()
+		return
+	lives_lost += 1
 	health -= 1
 	health = int(clamp(health, 0, 3))
 	
@@ -436,26 +673,18 @@ func _on_DeathArea_body_entered(body: Node) -> void:
 	
 	if health == 0:
 		paddle.game_over = true
+		started = false
+		# Freeze the ball: it must not keep breaking bricks (and clear the level)
+		# behind the game over dialog.
+		for b in balls:
+			b.velocity = Vector2.ZERO
+			b.visible = false
+			b.process_mode = Node.PROCESS_MODE_DISABLED
 		show_game_over()
 		return
 		
 	reset_and_attach_ball()
 
-func on_game_over_retry() -> void:
-	reset_and_attach_ball()
-	reset_health()
-	reset_energy()
-	reset_score()
-	time = 0.0
-	level = 1
-	set_fast(false)
-	paddle.add_gun_level(-paddle.MAX_GUN_LEVEL)
-	clear_drops()
-	flash_text(Levels.title_of(1))
-	Globals.reset_stats()
-	remove_all_bricks()
-	layout_bricks()
-	
 func _on_combo_timer_timeout():
 	combo = 0
 	hide_combo()

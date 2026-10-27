@@ -54,7 +54,6 @@ func _ready() -> void:
 	
 func _process(delta) -> void:
 	color_based_on_velocity()
-	scale_based_on_velocity()
 
 func _physics_process(delta: float) -> void:
 	
@@ -90,8 +89,6 @@ func _physics_process(delta: float) -> void:
 	if not collision: return
 	
 	var normal = collision.get_normal()
-	sprite.rotation = -normal.angle()
-	animationPlayer.play("bounce")
 	
 	# Update the normal with the paddle's velocity if we collide with
 	# the paddle
@@ -185,12 +182,6 @@ func color_based_on_velocity() -> void:
 	sprite.self_modulate = lerp(Globals.C_WHITE, Globals.C_CORAL, val)
 	$Trail.self_modulate = lerp(Globals.C_WHITE, Globals.C_CORAL, val)
 
-func scale_based_on_velocity() -> void:
-	if animationPlayer.is_playing(): return
-	
-	sprite.scale = lerp(sprite_base_scale, sprite_base_scale * Vector2(1.4, 0.5), velocity.length() / max_speed)
-	sprite.rotation = velocity.angle()
-	
 func spawn_bounce_particles(pos: Vector2, normal: Vector2) -> void:
 	var instance = bounce_particles_sence.instantiate()
 	get_tree().get_current_scene().add_child(instance)
@@ -219,7 +210,8 @@ func start_hitstop(hitstop_amount: int) -> void:
 	hitstop_frames = hitstop_amount
 
 func stop_hitstop() -> void:
-	animationPlayer.play()
+	# resume only a paused animation (e.g. "appear"); nothing to resume otherwise
+	if animationPlayer.assigned_animation != "": animationPlayer.play()
 	hitstop_frames = 0
 	
 
@@ -270,6 +262,10 @@ func launch() -> void:
 	#velocity = (-global_transform.y).rotated(randf_range(-PI/3.0, PI/3.0)) * speed * 6
 	velocity = -global_transform.y * speed * 7
 	attached_to = null
+	# Trail is hidden when a life is lost; bring it back fresh on every launch
+	# (no stale line from where the ball fell).
+	$Trail.clear_points()
+	$Trail.visible = true
 
 
 func _on_animation_player_animation_finished(anim_name):

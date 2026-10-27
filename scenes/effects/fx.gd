@@ -99,3 +99,11 @@ static func juice_buttons(root: Node) -> void:
 		b.focus_exited.connect(grow.bind(false))
 		b.button_down.connect(func(): b.scale = Vector2.ONE * 0.94)
 		b.button_up.connect(grow.bind(true))
+
+## Shared animated backdrop for menu screens (stars + slow orbits).
+static func add_menu_backdrop(parent: Node, index := 0) -> void:
+	var bd = preload("res://scenes/effects/backdrop.gd").new()
+	bd.full_screen = true
+	bd.set_theme(1, Globals.C_BG, Globals.C_WALL)
+	parent.add_child(bd)
+	parent.move_child(bd, index)

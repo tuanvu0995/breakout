@@ -3,7 +3,9 @@ extends Node2D
 ## low contrast so bricks always read on top. Also draws the glowing inner edge
 ## of the arena (top + both side walls) and flashes it where the ball hits.
 
-const FIELD := Rect2(5, 27, 1356, 1100)
+var FIELD := Rect2(5, 27, 1356, 1100)
+## Menu mode: covers the whole screen and skips the arena edge.
+var full_screen := false
 
 var theme_index := 0
 var field_color := Color("232850")
@@ -15,9 +17,12 @@ var stars: Array = []          # [pos, size, phase]
 var hits: Array = []           # [pos, life]
 
 func _ready() -> void:
+	if full_screen:
+		FIELD = Rect2(0, 0, 1920, 1080)
+		cx = 960.0
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	for i in 70:
+	for i in (70 if not full_screen else 120):
 		stars.append([Vector2(rng.randf_range(FIELD.position.x, FIELD.end.x), rng.randf_range(FIELD.position.y, FIELD.end.y)),
 			rng.randf_range(1.0, 2.6), rng.randf() * TAU])
 
@@ -49,7 +54,7 @@ func _draw() -> void:
 	for s in stars:
 		var a: float = 0.25 + 0.25 * sin(t * 1.7 + s[2])
 		draw_circle(s[0], s[1], Color(1, 1, 1, a))
-	_edges()
+	if not full_screen: _edges()
 
 # -------------------------------------------------------------- motifs
 
@@ -65,7 +70,7 @@ func _tiles(c: Color) -> void:
 		y += step
 
 func _orbits(c: Color, c2: Color) -> void:
-	var center := Vector2(cx, 380)
+	var center := Vector2(cx, 380 if not full_screen else 540)
 	for i in 6:
 		var r := 120.0 + i * 110.0
 		draw_arc(center, r, 0, TAU, 96, c, 3.0, true)

@@ -34,6 +34,7 @@ func _ready() -> void:
 	bg.color = Globals.C_BG
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	Fx.add_menu_backdrop(self, 1)
 
 	var root := VBoxContainer.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

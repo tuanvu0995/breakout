@@ -60,6 +60,8 @@ var base_pos: Vector2
 var base_layer: int
 var moving: bool = false
 var shape := ""  # "" = square/long; otherwise a BrickShapes name
+var is_boss := false
+var max_health := 1.0
 
 func _ready() -> void:
 	if spec.is_empty():
@@ -75,7 +77,10 @@ func _ready() -> void:
 	base_pos = position
 	base_layer = collision_layer
 	
-	health = health_dict[type]
+	health = spec.get("hp", health_dict[type])
+	max_health = health
+	is_boss = spec.get("boss", false)
+	if is_boss: scale = Vector2.ONE * spec.get("scale", 3.0)
 	
 	update_size_visuals()
 	update_type_visuals()
@@ -148,6 +153,13 @@ func update_size_visuals() -> void:
 
 func update_type_visuals() -> void:
 	size_sprite.self_modulate = brick_color()
+	if is_boss:
+		# a single dark "eye" instead of health dots; the HUD shows the boss bar
+		size_sprite.self_modulate = spec.get("color", Globals.C_RED)
+		type_sprite.texture = Globals.circle_tex(26)
+		type_sprite.self_modulate = Globals.C_DARK
+		type_sprite.scale = Vector2.ONE * 0.8
+		return
 	type_sprite.self_modulate = Globals.C_DARK if type == TYPE.EXPLOSIVE else Color(1, 1, 1, 0.9)
 	match type:
 		TYPE.ONE, TYPE.TWO, TYPE.THREE:
@@ -212,6 +224,9 @@ func spawn_bomb_explosion() -> void:
 	Fx.burst(scene, global_position, Globals.C_AMBER, 24, 500.0, 10.0)
 
 func update_type_health() -> void:
+	if is_boss:
+		update_type_visuals()
+		return
 	match int(ceil(health)):
 		3:
 			type = TYPE.THREE

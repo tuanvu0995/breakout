@@ -4,6 +4,13 @@ var volume_slider: HSlider
 
 func _ready():
 	theme = load("res://theme/main_theme.tres")
+	Fx.add_menu_backdrop(self)
+	var ver := Label.new()
+	ver.text = "v" + str(ProjectSettings.get_setting("application/config/version", "0.1.0"))
+	ver.position = Vector2(1920 - 140, 1080 - 50)
+	ver.add_theme_font_size_override("font_size", 20)
+	ver.add_theme_color_override("font_color", Color(Globals.C_WHITE, 0.3))
+	add_child(ver)
 	$MarginContainer/VBoxContainer/Play.grab_focus()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	$MarginContainer/VBoxContainer.add_theme_constant_override("separation", 20)

@@ -39,6 +39,7 @@ static func half_width(level: int, layout: Array) -> float:
 		if sp.has("move_amp"): reach += abs(sp["move_amp"].x)
 		var half_size := 65.0 if sp.get("size", SMALL) == LONG or sp.has("spin") else 32.0
 		if sp.has("shape"): half_size = BrickShapes.extent(sp["shape"]).length()
+		half_size *= sp.get("scale", 1.0)
 		need = max(need, reach + half_size + 50.0)
 	var target: float = WIDTH_STEPS[((level - 1) % COUNT) % 5]
 	return clamp(max(target, need), 300.0, FULL_HALF_WIDTH)
@@ -57,6 +58,9 @@ static func build(level: int) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1000 + i
 	var out := []
+	if k == 4:  # last stage of every theme is a boss fight
+		_boss(out, i / 5, rng)
+		return out
 	match i / 5:
 		0: _blocks(out, k)
 		1: _orbit(out, k, rng)
@@ -65,6 +69,57 @@ static func build(level: int) -> Array:
 		4: _spiral(out, k, rng)
 		5: _chaos(out, k, rng)
 	return out
+
+## Boss per theme: one giant brick with its theme's motion, plus a light escort.
+const BOSSES := [
+	{"name": "THE MONOLITH", "shape": "", "scale": 3.0, "hp": 30, "color": Color("ff6b6b"),
+		"move_amp": Vector2(240, 0), "move_freq": 0.6},
+	{"name": "SATELLITE KING", "shape": "circle", "scale": 3.0, "hp": 36, "color": Color("3ddcf5"),
+		"orbit_center": Vector2(683, 300), "orbit_radius": 150.0, "orbit_speed": 0.55},
+	{"name": "LEVIATHAN", "shape": "pill", "scale": 3.0, "hp": 42, "color": Color("5ce08a"),
+		"move_amp": Vector2(300, 50), "move_freq": 0.8},
+	{"name": "WRAITH", "shape": "diamond", "scale": 3.4, "hp": 48, "color": Color("9b7bff"),
+		"move_amp": Vector2(220, 0), "move_freq": 0.5, "blink": 3.2},
+	{"name": "VORTEX", "shape": "star", "scale": 3.2, "hp": 54, "color": Color("ffb84d"),
+		"move_amp": Vector2(180, 60), "move_freq": 0.7, "spin": 1.1},
+	{"name": "OMEGA", "shape": "heart", "scale": 3.2, "hp": 64, "color": Color("ff3d5e"),
+		"move_amp": Vector2(280, 60), "move_freq": 1.0},
+]
+
+static func boss_of(level: int) -> Dictionary:
+	var i := (level - 1) % COUNT
+	return BOSSES[i / 5] if i % 5 == 4 else {}
+
+static func _boss(out: Array, t: int, rng) -> void:
+	var b: Dictionary = BOSSES[t].duplicate()
+	var spec := {"type": THREE, "size": SMALL, "boss": true}
+	spec.merge(b)
+	if b["shape"] == "": spec.erase("shape")
+	_add(out, Vector2(CX, 280), spec)
+	var hard := 0.5 + t * 0.1
+	match t:
+		0:
+			for i in 9: _s(out, "", -256 + i * 64.0, 520, _roll(rng, hard))
+		1:
+			_ring(out, rng, Vector2(CX, 300), 330, 14, -0.35, hard, "hex")
+		2:
+			_tide_row(out, rng, 520, 6, 120, 1.0, 0.0, hard, "bar")
+		3:
+			for i in 8: _add(out, Vector2(CX - 280 + i * 80.0, 540), {"type": _roll(rng, hard), "size": SMALL,
+				"shape": "circle", "blink": 2.4, "phase": i * 0.3})
+		4:
+			_ring(out, rng, Vector2(CX, 300), 320, 12, 0.5, hard, "tri")
+		5:
+			_ring(out, rng, Vector2(CX, 320), 330, 12, 0.6, hard, "star")
+			_tide_row(out, rng, 560, 6, 100, 1.2, 0.0, hard, "pill")
+
+## Target clear time for the 2nd star, from the layout's size and toughness.
+static func par_time(level: int) -> float:
+	var t := 15.0
+	for item in build(level):
+		var sp: Dictionary = item["spec"]
+		t += sp.get("hp", sp.get("type", ONE) + 1) * 1.1 if sp.get("type", ONE) <= THREE else 0.3
+	return ceil(t / 5.0) * 5.0
 
 # --- helpers -------------------------------------------------------------
 
