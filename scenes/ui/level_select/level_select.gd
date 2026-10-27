@@ -122,16 +122,23 @@ func make_world_button(w: int, group: ButtonGroup) -> Button:
 		st.text = "%d/%d" % [world_stars(w), Levels.STAGES * 3]
 		st.add_theme_font_size_override("font_size", 20)
 		st.add_theme_color_override("font_color", Globals.C_AMBER)
-		st.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
-		st.position.x -= 70
+		# anchored to the right edge, vertically centered: stays put when the button resizes
+		st.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+		st.offset_left = -96; st.offset_right = -18
+		st.offset_top = -14; st.offset_bottom = 14
+		st.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		st.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		st.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(st)
 	else:
 		var lock := TextureRect.new()
 		lock.texture = lock_tex()
 		lock.modulate = Color(Globals.C_WHITE, 0.3)
-		lock.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
-		lock.position += Vector2(-56, -22)
+		lock.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+		lock.offset_left = -60; lock.offset_right = -20
+		lock.offset_top = -22; lock.offset_bottom = 22
+		lock.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		lock.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(lock)
 	b.disabled = not open

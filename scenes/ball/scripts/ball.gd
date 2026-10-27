@@ -264,7 +264,7 @@ func die() -> void:
 	$Trail.visible = false
 
 func color_based_on_velocity() -> void:
-	var val = remap(velocity.length(), speed, max_speed, 0, 1.0)
+	var val: float = clamp(remap(velocity.length(), speed, max_speed, 0.0, 1.0), 0.0, 1.0)
 	sprite.self_modulate = lerp(Globals.C_WHITE, Globals.C_CORAL, val)
 	$Trail.self_modulate = lerp(Globals.C_WHITE, Globals.C_CORAL, val)
 

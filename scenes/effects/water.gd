@@ -2,7 +2,7 @@ extends Node2D
 ## Flat animated water at the bottom of the arena: three parallax wave layers in
 ## the theme's color, a foam line on top, and ripples + splashes where balls fall.
 
-const SURFACE_Y := 1062.0
+const SURFACE_Y := 1094.0  # below the ship and its engine flame
 const LEFT := -700.0
 const RIGHT := 2100.0
 const STEP := 12.0
@@ -48,7 +48,7 @@ func _layer_points(layer: int, y0: float) -> PackedVector2Array:
 	return pts
 
 func _draw() -> void:
-	var offsets := [-14.0, -6.0, 0.0]
+	var offsets := [-8.0, -3.0, 0.0]
 	var shades := [color.darkened(0.45), color.darkened(0.25), color]
 	var alphas := [0.55, 0.75, 0.9]
 	var front := PackedVector2Array()
