@@ -75,8 +75,10 @@ func _ready() -> void:
 	var current_world: int = min(Globals.max_level, Levels.COUNT) - 1
 	show_world(current_world / Levels.STAGES)
 
+	var recenter := func(): root.position = ((size - root.size) / 2.0).floor()
+	resized.connect(recenter)
 	await get_tree().process_frame
-	root.position = (size - root.size) / 2.0
+	recenter.call()
 	Audio.play_music(Audio.MENU_MUSIC)
 	Audio.wire_buttons(self)
 	Fx.juice_buttons(self)
@@ -252,7 +254,11 @@ func select(level: int) -> void:
 	sb.set_content_margin_all(40)
 	card.add_theme_stylebox_override("panel", sb)
 	card.custom_minimum_size = Vector2(720, 0)
-	dialog.add_child(card)
+	var center := CenterContainer.new()  # keeps the card centered at any screen size
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE  # clicks outside the card still close it
+	dialog.add_child(center)
+	center.add_child(card)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 16)
 	card.add_child(v)
@@ -296,7 +302,6 @@ func select(level: int) -> void:
 	Fx.juice_buttons(dialog)
 	Audio.sfx("pause", -6.0)
 	await get_tree().process_frame
-	card.position = (size - card.size) / 2.0
 	card.pivot_offset = card.size / 2.0
 	card.scale = Vector2.ONE * 0.85
 	card.create_tween().tween_property(card, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)

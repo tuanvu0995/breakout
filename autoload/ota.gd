@@ -156,9 +156,11 @@ func _show_overlay(title: String) -> void:
 	var box := VBoxContainer.new()
 	box.theme = load("res://theme/main_theme.tres")
 	box.custom_minimum_size = Vector2(700, 0)
-	box.position = Vector2(610, 420)
 	box.add_theme_constant_override("separation", 20)
-	_overlay.add_child(box)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_overlay.add_child(center)
+	center.add_child(box)
 	var t := Label.new()
 	t.text = title
 	t.add_theme_font_size_override("font_size", 40)

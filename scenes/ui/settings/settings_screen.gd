@@ -26,7 +26,10 @@ func _ready() -> void:
 	sb.set_corner_radius_all(32)
 	sb.set_content_margin_all(44)
 	card.add_theme_stylebox_override("panel", sb)
-	add_child(card)
+	var center := CenterContainer.new()  # keeps the card centered at any screen size
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(center)
+	center.add_child(card)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 12)
 	card.add_child(v)
@@ -67,7 +70,6 @@ func _ready() -> void:
 	Fx.juice_buttons(card)
 	await get_tree().process_frame
 	card.pivot_offset = card.size / 2.0
-	card.position = (Vector2(1920, 1080) - card.size) / 2.0
 	card.scale = Vector2.ONE * 0.9
 	card.modulate.a = 0.0
 	var tw := create_tween().set_parallel()

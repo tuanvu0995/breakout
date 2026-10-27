@@ -18,8 +18,9 @@ var hits: Array = []           # [pos, life]
 
 func _ready() -> void:
 	if full_screen:
-		FIELD = Rect2(0, 0, 1920, 1080)
-		cx = 960.0
+		var vs := get_viewport().get_visible_rect().size
+		FIELD = Rect2(Vector2.ZERO, vs)
+		cx = vs.x / 2.0
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	for i in (70 if not full_screen else 120):
@@ -70,7 +71,7 @@ func _tiles(c: Color) -> void:
 		y += step
 
 func _orbits(c: Color, c2: Color) -> void:
-	var center := Vector2(cx, 380 if not full_screen else 540)
+	var center := Vector2(cx, 380 if not full_screen else FIELD.size.y / 2.0)
 	for i in 6:
 		var r := 120.0 + i * 110.0
 		draw_arc(center, r, 0, TAU, 96, c, 3.0, true)

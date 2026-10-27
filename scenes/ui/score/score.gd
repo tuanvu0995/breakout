@@ -7,8 +7,10 @@ func _ready():
 	score.add_theme_color_override("font_color", Globals.C_WHITE)
 	score.add_theme_font_size_override("font_size", 46)
 	score.size = Vector2(500, 64)
-	position = Vector2(960 - 250, 14)
 	score.position = Vector2.ZERO
+	set_anchors_preset(Control.PRESET_CENTER_TOP)  # centered on the real screen width
+	offset_left = -250; offset_right = 250
+	offset_top = 14; offset_bottom = 78
 
 var shown := 0
 

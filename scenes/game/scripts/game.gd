@@ -217,6 +217,7 @@ func layout_bricks() -> void:
 	var layout: Array = Globals.custom_level if not Globals.custom_level.is_empty() else Levels.build(level)
 	lives_lost = 0
 	final_phase = 0
+	clearing = false
 	# every level starts at its own ramped ball speed, normal size
 	set_ball_speed(1.0, 0.0)
 	set_big(false)
@@ -350,8 +351,10 @@ func apply_flat_style() -> void:
 	# outer frame: left, right and top bands of the static wall polygon (wall-local coords)
 	var hint := preload("res://scenes/ui/controls_hint/controls_hint.gd").new()
 	hint.game = self
-	hint.position = Vector2(32, 1080 - 32 - (150 if not DisplayServer.is_touchscreen_available() else 112))
 	$CanvasLayer.add_child(hint)
+	var hint_h := 150.0 if not DisplayServer.is_touchscreen_available() else 112.0
+	hint.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	hint.offset_left = 32; hint.offset_top = -32 - hint_h; hint.offset_bottom = -32
 	build_frame()
 	$Camera.base_zoom = 0.94  # fit the wide arena plus a HUD band on top
 	combo_lbl.add_theme_color_override("font_color", Globals.C_AMBER)
@@ -371,7 +374,7 @@ func apply_flat_style() -> void:
 func place_combo() -> void:
 	combo_lbl.size = Vector2.ZERO
 	combo_lbl.reset_size()
-	combo_lbl.position = Vector2(960 - combo_lbl.size.x / 2.0, 88)
+	combo_lbl.position = Vector2(get_viewport().get_visible_rect().size.x / 2.0 - combo_lbl.size.x / 2.0, 88)
 
 ## Static outer frame (U shape) around the widest possible arena. The movable
 ## side walls narrow it per level. Coordinates are local to $Wall.
@@ -388,6 +391,19 @@ func build_frame() -> void:
 	frame_decor = WallDecor.new()
 	frame_decor.rects = [Rect2(ol, -500, l - ol, 1581), Rect2(r, -500, orr - r, 1581), Rect2(l, -500, r - l, 500)]
 	$Wall.add_child(frame_decor)
+
+var clearing := false
+
+## Remove what's left of the cleared level: optional bricks, bullets, debris.
+func _sweep_leftovers() -> void:
+	for b in bricks.duplicate():
+		if is_instance_valid(b) and not b.isDestroyed:
+			b.isDestroyed = true  # no more signals from it
+			b.queue_free()
+	bricks.clear()
+	for c in get_children():
+		if c is Area2D and (c.get_script() == preload("res://scenes/weapons/bullet.gd") or c is Debris):
+			c.queue_free()
 
 func next_level() -> void:
 	# Clear bonus: faster clears earn more
@@ -443,7 +459,7 @@ func show_stars(got: Array, par: float) -> void:
 	add_child(layer)
 	var captions := ["CLEAR", "UNDER %s" % Globals.format_time(par).trim_suffix(".00"), "NO LIFE LOST"]
 	for i in 3:
-		var x := 960.0 + (i - 1) * 190.0
+		var x: float = get_viewport().get_visible_rect().size.x / 2.0 + (i - 1) * 190.0
 		var star := Sprite2D.new()
 		star.texture = BrickShapes.texture("star")
 		star.position = Vector2(x, 380 - (20 if i == 1 else 0))
@@ -541,7 +557,8 @@ var boss_fill: StyleBoxFlat
 
 func _build_boss_bar() -> void:
 	boss_bar = VBoxContainer.new()
-	boss_bar.position = Vector2(960 - 360, 150)
+	boss_bar.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	boss_bar.offset_left = -360; boss_bar.offset_right = 360; boss_bar.offset_top = 150
 	boss_bar.custom_minimum_size = Vector2(720, 0)
 	var name_lbl := Label.new()
 	name_lbl.text = boss.spec.get("name", "BOSS")
@@ -608,7 +625,10 @@ func show_victory() -> void:
 	v.theme = load("res://theme/main_theme.tres")
 	v.add_theme_constant_override("separation", 18)
 	v.custom_minimum_size = Vector2(900, 0)
-	layer.add_child(v)
+	var vc := CenterContainer.new()
+	vc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(vc)
+	vc.add_child(v)
 	var lines := [
 		["VICTORY", 96, Globals.C_AMBER],
 		["THE ARCHITECT HAS FALLEN", 34, Globals.C_CYAN],
@@ -641,8 +661,6 @@ func show_victory() -> void:
 		v.add_child(btn)
 	Audio.wire_buttons(v)
 	Fx.juice_buttons(v)
-	await get_tree().process_frame
-	v.position = (Vector2(1920, 1080) - v.size) / 2.0
 	for i in 6:
 		Fx.burst(self, Vector2(Levels.CX + randf_range(-500, 500), randf_range(150, 600)),
 			[Globals.C_AMBER, Globals.C_CYAN, Globals.C_VIOLET, Globals.C_CORAL][i % 4], 40, 700.0, 14.0)
@@ -730,9 +748,11 @@ func add_pause_handler() -> void:
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.add_theme_font_size_override("font_size", 36)
 		btn.custom_minimum_size = Vector2(80, 70)
-		btn.position = Vector2(1920 - 40 - 380 - 110, 22)
 		btn.pressed.connect(handler.open)
 		$CanvasLayer.add_child(btn)
+		btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		btn.offset_left = -40 - 380 - 110; btn.offset_right = btn.offset_left + 80
+		btn.offset_top = 22; btn.offset_bottom = 92
 
 class PauseHandler extends Node:
 	var game: Node
@@ -801,7 +821,11 @@ func on_brick_destroyed(which) -> void:
 	Globals.stats["score"] = score
 	score_ui.set_score(score)
 	
-	if bricks_to_destroy.is_empty():
+	if bricks_to_destroy.is_empty() and not clearing:
+		# Guard: leftover bombs / energy bricks (or bullets still flying) must not
+		# trigger a second clear, which used to skip a level.
+		clearing = true
+		_sweep_leftovers()
 		started = false
 		paddle.stage_clear = true
 		Globals.stats["time"] = time

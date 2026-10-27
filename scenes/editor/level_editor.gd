@@ -27,6 +27,7 @@ var slot := 0
 var dirty := false
 
 var grid_origin := Vector2.ZERO
+var vs := Vector2(1920, 1080)       # real screen size (aspect "expand")
 var cs := 66.0                      # on-screen cell size
 var hover := Vector2i(-1, -1)
 var painting := 0                   # 0 none, 1 paint, -1 erase
@@ -45,16 +46,17 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	theme = load("res://theme/main_theme.tres")
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	vs = get_viewport_rect().size
 	# Fit the grid into the space between the two tool panels.
-	var area := Rect2(PAD * 2 + SIDE_W, TOP_H + 20, 1920 - 2 * (PAD * 2 + SIDE_W), 1080 - TOP_H - 90)
+	var area := Rect2(PAD * 2 + SIDE_W, TOP_H + 20, vs.x - 2 * (PAD * 2 + SIDE_W), vs.y - TOP_H - 90)
 	cs = floor(min(area.size.x / COLS, area.size.y / ROWS))
 	grid_origin = (area.position + (area.size - Vector2(COLS, ROWS) * cs) / 2.0).floor()
 	build_top_bar()
 	build_left_panel()
 	build_right_panel()
 	hint = Label.new()
-	hint.position = Vector2(0, 1080 - 56)
-	hint.size = Vector2(1920, 40)
+	hint.position = Vector2(0, vs.y - 56)
+	hint.size = Vector2(vs.x, 40)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 20)
 	hint.add_theme_color_override("font_color", Color(Globals.C_WHITE, 0.4))
@@ -71,7 +73,7 @@ func _ready() -> void:
 func build_top_bar() -> void:
 	var bar := HBoxContainer.new()
 	bar.position = Vector2(PAD, 18)
-	bar.size = Vector2(1920 - PAD * 2, 60)
+	bar.size = Vector2(vs.x - PAD * 2, 60)
 	bar.add_theme_constant_override("separation", 14)
 	add_child(bar)
 	bar.add_child(_btn("< MENU", _back, Color(0, 0, 0, 0), Color(Globals.C_WHITE, 0.7), Vector2(130, 56)))
@@ -109,7 +111,7 @@ func build_left_panel() -> void:
 		v.add_child(b)
 
 func build_right_panel() -> void:
-	var v := _panel(Vector2(1920 - PAD - SIDE_W, TOP_H + 20), "SHAPE")
+	var v := _panel(Vector2(vs.x - PAD - SIDE_W, TOP_H + 20), "SHAPE")
 	var grid := GridContainer.new()
 	grid.columns = 3
 	grid.add_theme_constant_override("h_separation", 8)
@@ -334,7 +336,7 @@ func _rounded(col: Color, r: int) -> StyleBoxFlat:
 # ---------------------------------------------------------------- actions
 
 func _toast(text: String, col: Color) -> void:
-	Fx.popup(self, Vector2(960, TOP_H + 60), text, col, 30)
+	Fx.popup(self, Vector2(vs.x / 2.0, TOP_H + 60), text, col, 30)
 
 func _back() -> void:
 	get_tree().change_scene_to_file("res://scenes/ui/main_menu/main_menu.tscn")

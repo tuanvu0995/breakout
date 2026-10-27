@@ -88,6 +88,13 @@ func _ready() -> void:
 func build_ship() -> void:
 	sprite.self_modulate.a = 0.0
 	sprite.material = null  # old shader ignores modulate and draws the old paddle
+	# drop animation tracks that drove that shader (they'd target a missing material)
+	for lib_name in anim.get_animation_library_list():
+		var lib := anim.get_animation_library(lib_name)
+		for anim_name in lib.get_animation_list():
+			var a := lib.get_animation(anim_name)
+			for i in range(a.get_track_count() - 1, -1, -1):
+				if "material" in str(a.track_get_path(i)): a.remove_track(i)
 	var w := base_shape_size.x / 2.0
 	var h := base_shape_size.y / 2.0
 	var skin: Dictionary = Globals.SKINS[Globals.skin_index]

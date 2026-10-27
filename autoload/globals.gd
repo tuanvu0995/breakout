@@ -71,8 +71,14 @@ func pips_tex(n: int, last := 1.0) -> ImageTexture:
 func diamond_tex() -> ImageTexture:
 	return sdf_texture("diamond", Vector2i(30, 30), func(p): return (abs(p.x) + abs(p.y) - 12.0) * 0.707)
 
+## Kept alive for the whole run: the theme is edited in memory, and if nothing
+## held it the resource cache would drop it and screens would reload the
+## unstyled file from disk.
+var ui_theme: Theme
+
 func apply_ui_theme() -> void:
-	var theme: Theme = load("res://theme/main_theme.tres")
+	ui_theme = load("res://theme/main_theme.tres")
+	var theme := ui_theme
 	theme.set_color("font_color", "Label", C_WHITE)
 	for state in ["normal", "hover", "pressed", "focus"]:
 		var sb := StyleBoxFlat.new()

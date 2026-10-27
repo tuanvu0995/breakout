@@ -6,10 +6,12 @@ func _ready():
 	Fx.add_menu_backdrop(self)
 	var ver := Label.new()
 	ver.text = "v" + str(ProjectSettings.get_setting("application/config/version", "0.1.0"))
-	ver.position = Vector2(1920 - 140, 1080 - 50)
 	ver.add_theme_font_size_override("font_size", 20)
 	ver.add_theme_color_override("font_color", Color(Globals.C_WHITE, 0.3))
 	add_child(ver)
+	ver.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	ver.offset_left = -140; ver.offset_top = -50; ver.offset_right = -20; ver.offset_bottom = -20
+	resized.connect(center_menu)  # window / fullscreen changes
 	$MarginContainer/VBoxContainer/Play.grab_focus()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	$MarginContainer/VBoxContainer.add_theme_constant_override("separation", 20)
