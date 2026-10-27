@@ -71,6 +71,8 @@ func layout_bricks() -> void:
 	$Wall/Polygon2D.color = theme["wall"]
 	Audio.play_theme_music(((level - 1) % Levels.COUNT) / 5)
 	Audio.sfx("level_start", -6.0)
+	if Globals.custom_level.is_empty() and level <= Levels.COUNT:
+		Leaderboard.start(level)
 	var layout: Array = Globals.custom_level if not Globals.custom_level.is_empty() else Levels.build(level)
 	set_field_width(Levels.half_width(level, layout), theme["wall"])
 	for item in layout:
@@ -157,6 +159,8 @@ func reset_score() -> void:
 func show_combo(combo: int) -> void:
 	combo_lbl.text = "COMBO " + str(combo)
 	combo_lbl.visible = true
+	combo_lbl.add_theme_color_override("font_color", [Globals.C_AMBER, Globals.C_CORAL, Globals.C_VIOLET, Globals.C_CYAN][min(combo / 5, 3)])
+	Fx.punch(combo_lbl, 0.15 + min(combo, 10) * 0.02)
 	pass
 	
 func hide_combo() -> void:
@@ -177,6 +181,11 @@ func next_level() -> void:
 	Globals.stats["score"] = score
 	score_ui.set_score(score)
 	flash_text("CLEAR! +%d" % bonus)
+	if Globals.custom_level.is_empty() and level <= Levels.COUNT:
+		var clear_time := time
+		if Globals.submit_time(level, clear_time):
+			Fx.popup(self, Vector2(Levels.CX, 520), "BEST TIME %s" % Globals.format_time(clear_time), Globals.C_CYAN, 44)
+		Leaderboard.submit(level, clear_time, score)
 	Audio.sfx("level_clear", -2.0)
 	await get_tree().create_timer(1.5).timeout
 	if not Globals.custom_level.is_empty():
@@ -208,10 +217,11 @@ func spawn_powerup(pos: Vector2) -> void:
 
 func on_powerup_collected(kind: int) -> void:
 	Audio.sfx("powerup", -2.0)
+	Fx.ring(self, paddle.global_position, PowerUp.INFO[kind][1], 160)
+	Fx.burst(self, paddle.global_position, PowerUp.INFO[kind][1], 20, 500.0)
 	match kind:
 		PowerUp.KIND.GUN:
-			paddle.add_gun_level(1)
-			flash_text("GUN x%d" % paddle.gun_level)
+			flash_text(paddle.add_gun_level(1))
 		PowerUp.KIND.WIDE:
 			paddle.make_wide(15.0)
 			flash_text("WIDE")
@@ -259,7 +269,7 @@ class PauseHandler extends Node:
 		label.visible = get_tree().paused
 	func _notification(what: int) -> void:
 		# Mobile: auto-pause when the app goes to background
-		if what == NOTIFICATION_APPLICATION_FOCUS_OUT and not get_tree().paused: toggle()
+		if what == NOTIFICATION_APPLICATION_FOCUS_OUT and not get_tree().paused and Engine.get_write_movie_path() == "": toggle()
 	func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("ui_cancel"):
 			toggle()
@@ -270,6 +280,8 @@ class PauseHandler extends Node:
 func flash_text(text: String) -> void:
 	combo_lbl.text = text
 	combo_lbl.visible = true
+	combo_lbl.add_theme_color_override("font_color", Globals.C_AMBER)
+	Fx.punch(combo_lbl, 0.3, 0.4)
 	combo_timer.start()
 
 func show_game_over() -> void:
@@ -292,7 +304,11 @@ func on_brick_destroyed(which) -> void:
 	combo += 1
 	show_combo(combo)
 	combo_timer.start()
-	score += score_brick_destroyed * combo
+	var pts: int = score_brick_destroyed * combo
+	score += pts
+	var hot: Color = [Globals.C_WHITE, Globals.C_AMBER, Globals.C_CORAL, Globals.C_VIOLET][min(combo / 4, 3)]
+	Fx.popup(self, which.global_position, "+%d" % pts, hot, 30 + min(combo, 10) * 2)
+	Globals.camera.shake(0.15, 8, 6)
 	Globals.stats["score"] = score
 	score_ui.set_score(score)
 	

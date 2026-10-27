@@ -46,7 +46,9 @@ func _ready():
 	build_skin_picker()
 	center_menu.call_deferred()
 	Audio.play_music(Audio.MENU_MUSIC)
+	Ota.check_for_updates()
 	Audio.wire_buttons(self)
+	Fx.juice_buttons(self)
 
 func center_menu() -> void:
 	var box := $MarginContainer
@@ -91,19 +93,18 @@ func show_skin(i: int) -> void:
 		poly.position = Vector2(110, 45)
 		if not unlocked: poly.color = Color(Globals.C_WHITE, 0.12)
 		skin_preview.add_child(poly)
+	Fx.punch(skin_preview, 0.2)
 	if unlocked:
 		Globals.skin_index = i
 		Globals.save()
-		skin_label.text = sk["name"]
+		skin_label.text = "%s   %d/%d" % [sk["name"], i + 1, Globals.SKINS.size()]
 		skin_label.add_theme_color_override("font_color", Globals.C_WHITE)
 	else:
-		skin_label.text = "LOCKED - REACH LEVEL %d" % sk["unlock"]
+		skin_label.text = Globals.unlock_text(i)
 		skin_label.add_theme_color_override("font_color", Color(Globals.C_WHITE, 0.4))
 
 func _on_play_pressed():
-	Globals.start_level = 1
-	Globals.custom_level = []
-	get_tree().change_scene_to_file("res://scenes/game/game.tscn")
+	get_tree().change_scene_to_file("res://scenes/ui/level_select/level_select.tscn")
 
 func _on_options_pressed():
 	volume_slider.visible = not volume_slider.visible

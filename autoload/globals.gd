@@ -97,21 +97,58 @@ const SHAPES := {
 	"saucer": [[-1, 0.3], [-0.6, -0.5], [-0.2, -0.9], [0.2, -0.9], [0.6, -0.5], [1, 0.3], [0.6, 0.8], [-0.6, 0.8]],
 	"twin": [[-1, 1], [-0.85, -1], [-0.55, -1], [-0.4, 0], [0.4, 0], [0.55, -1], [0.85, -1], [1, 1], [0, 0.6]],
 	"manta": [[-1, 0.6], [-0.5, -0.4], [0, -1], [0.5, -0.4], [1, 0.6], [0.4, 0.3], [0, 0.8], [-0.4, 0.3]],
+	"hawk": [[-1, -0.2], [-0.4, 0.2], [-0.15, -1], [0.15, -1], [0.4, 0.2], [1, -0.2], [0.7, 0.6], [0.2, 0.5], [0, 1], [-0.2, 0.5], [-0.7, 0.6]],
+	"bolt": [[-1, 0.8], [-0.3, -0.2], [-0.5, -0.2], [0, -1], [0.3, -0.1], [0.5, -0.1], [1, 0.8], [0, 0.4]],
+	"claw": [[-1, -1], [-0.6, 0.2], [-0.2, -0.6], [0.2, -0.6], [0.6, 0.2], [1, -1], [0.9, 0.9], [0, 0.5], [-0.9, 0.9]],
+	"crescent": [[-1, -0.6], [-0.7, 0.5], [-0.3, 0.9], [0.3, 0.9], [0.7, 0.5], [1, -0.6], [0.5, 0.1], [0, -0.1], [-0.5, 0.1]],
+	"orb": [[-0.5, -0.9], [0.5, -0.9], [0.95, -0.3], [1, 0.4], [0.6, 0.95], [-0.6, 0.95], [-1, 0.4], [-0.95, -0.3]],
 }
+## unlock: reach that level. score: reach that best score instead.
+## accent: inner stripe color, trail: engine flame color.
 const SKINS := [
-	{"name": "ARROW", "shape": "arrow", "hull": C_WHITE, "cockpit": C_CYAN, "unlock": 1},
-	{"name": "DELTA", "shape": "delta", "hull": C_AMBER, "cockpit": C_DARK, "unlock": 5},
-	{"name": "SAUCER", "shape": "saucer", "hull": C_GREEN, "cockpit": C_WHITE, "unlock": 10},
-	{"name": "TWIN", "shape": "twin", "hull": C_VIOLET, "cockpit": C_AMBER, "unlock": 15},
-	{"name": "MANTA", "shape": "manta", "hull": C_CYAN, "cockpit": C_CORAL, "unlock": 20},
-	{"name": "EMBER", "shape": "delta", "hull": C_CORAL, "cockpit": C_AMBER, "unlock": 25},
-	{"name": "NOVA", "shape": "manta", "hull": C_AMBER, "cockpit": C_VIOLET, "unlock": 31},
+	{"name": "ARROW", "shape": "arrow", "hull": C_WHITE, "cockpit": C_CYAN, "trail": C_CYAN, "unlock": 1},
+	{"name": "DELTA", "shape": "delta", "hull": C_AMBER, "cockpit": C_DARK, "accent": C_CORAL, "trail": C_AMBER, "unlock": 5},
+	{"name": "SAUCER", "shape": "saucer", "hull": C_GREEN, "cockpit": C_WHITE, "accent": C_CYAN, "trail": C_GREEN, "unlock": 10},
+	{"name": "TWIN", "shape": "twin", "hull": C_VIOLET, "cockpit": C_AMBER, "trail": C_VIOLET, "unlock": 15},
+	{"name": "MANTA", "shape": "manta", "hull": C_CYAN, "cockpit": C_CORAL, "accent": C_WHITE, "trail": C_CYAN, "unlock": 20},
+	{"name": "EMBER", "shape": "delta", "hull": C_CORAL, "cockpit": C_AMBER, "accent": C_AMBER, "trail": C_CORAL, "unlock": 25},
+	{"name": "NOVA", "shape": "manta", "hull": C_AMBER, "cockpit": C_VIOLET, "accent": C_VIOLET, "trail": C_WHITE, "unlock": 31},
+	{"name": "HAWK", "shape": "hawk", "hull": C_WHITE, "cockpit": C_RED, "accent": C_RED, "trail": C_CORAL, "score": 5000},
+	{"name": "VOLT", "shape": "bolt", "hull": C_AMBER, "cockpit": C_DARK, "accent": C_WHITE, "trail": C_AMBER, "score": 10000},
+	{"name": "CLAW", "shape": "claw", "hull": C_RED, "cockpit": C_WHITE, "accent": C_DARK, "trail": C_RED, "score": 20000},
+	{"name": "LUNA", "shape": "crescent", "hull": C_CYAN, "cockpit": C_WHITE, "accent": C_VIOLET, "trail": C_VIOLET, "score": 35000},
+	{"name": "ORB", "shape": "orb", "hull": C_VIOLET, "cockpit": C_GREEN, "accent": C_GREEN, "trail": C_GREEN, "score": 50000},
+	{"name": "GHOST", "shape": "hawk", "hull": Color(0.95, 0.95, 1.0, 0.55), "cockpit": C_CYAN, "accent": C_WHITE, "trail": C_WHITE, "score": 75000},
+	{"name": "KING", "shape": "claw", "hull": C_AMBER, "cockpit": C_RED, "accent": C_WHITE, "trail": C_AMBER, "score": 100000},
 ]
 
 func skin_unlocked(i: int) -> bool:
-	return max_level >= SKINS[i]["unlock"]
+	var sk: Dictionary = SKINS[i]
+	if sk.has("score"): return high_score >= sk["score"]
+	return max_level >= sk["unlock"]
 
-## Builds hull + cockpit polygons for a skin, sized to half-extents w/h.
+## Best clear time per level (seconds), saved locally.
+var best_times := {}
+
+func best_time(level: int) -> float:
+	return best_times.get(str(level), 0.0)
+
+## Returns true if it's a new personal best.
+func submit_time(level: int, seconds: float) -> bool:
+	var old := best_time(level)
+	if old > 0.0 and seconds >= old: return false
+	best_times[str(level)] = seconds
+	save()
+	return true
+
+static func format_time(t: float) -> String:
+	return "%d:%05.2f" % [int(t) / 60, fmod(t, 60.0)]
+
+func unlock_text(i: int) -> String:
+	var sk: Dictionary = SKINS[i]
+	if sk.has("score"): return "LOCKED - SCORE %d" % sk["score"]
+	return "LOCKED - REACH LEVEL %d" % sk["unlock"]
+
 func make_ship(skin: Dictionary, w: float, h: float) -> Array[Polygon2D]:
 	var hull := Polygon2D.new()
 	var pts := PackedVector2Array()
@@ -121,7 +158,13 @@ func make_ship(skin: Dictionary, w: float, h: float) -> Array[Polygon2D]:
 	var cockpit := Polygon2D.new()
 	cockpit.polygon = PackedVector2Array([Vector2(-w * 0.1, -h * 0.1), Vector2(0, -h * 0.85), Vector2(w * 0.1, -h * 0.1)])
 	cockpit.color = skin["cockpit"]
-	return [hull, cockpit]
+	if not skin.has("accent"): return [hull, cockpit]
+	var accent := Polygon2D.new()
+	var inner := PackedVector2Array()
+	for p in pts: inner.append(Vector2(p.x * 0.6, p.y * 0.35 + h * 0.3))
+	accent.polygon = inner
+	accent.color = skin["accent"]
+	return [hull, accent, cockpit]
 
 ## Returns the skin newly unlocked by reaching `level`, or {}.
 func reach_level(level: int) -> Dictionary:
@@ -130,7 +173,7 @@ func reach_level(level: int) -> Dictionary:
 	max_level = level
 	save()
 	for sk in SKINS:
-		if sk["unlock"] > before and sk["unlock"] <= level: return sk
+		if sk.has("unlock") and sk["unlock"] > before and sk["unlock"] <= level: return sk
 	return {}
 
 func _ready() -> void:
@@ -141,6 +184,7 @@ func _ready() -> void:
 		set_volume(cfg.get_value("game", "volume", 0.8))
 		max_level = cfg.get_value("game", "max_level", 1)
 		skin_index = cfg.get_value("game", "skin", 0)
+		best_times = cfg.get_value("game", "best_times", {})
 
 var volume: float = 0.8
 
@@ -154,6 +198,7 @@ func save() -> void:
 	cfg.set_value("game", "volume", volume)
 	cfg.set_value("game", "max_level", max_level)
 	cfg.set_value("game", "skin", skin_index)
+	cfg.set_value("game", "best_times", best_times)
 	cfg.save(SAVE_PATH)
 
 ## Returns true if it's a new record.

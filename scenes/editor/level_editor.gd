@@ -27,6 +27,7 @@ func _ready() -> void:
 	load_slot(0)
 	Audio.play_music(Audio.MENU_MUSIC)
 	Audio.wire_buttons(self)
+	Fx.juice_buttons(self)
 
 func build_ui() -> void:
 	var title := Label.new()

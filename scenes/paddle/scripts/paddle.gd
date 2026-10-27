@@ -50,11 +50,27 @@ var move_right_pressed: bool = false
 var dash_direction: int = 0
 
 const Bullet = preload("res://scenes/weapons/bullet.gd")
-const FIRE_RATE := 0.22
-const MAX_GUN_LEVEL := 3
+## Bullet types, fed to Bullet.setup().
+var WEAPONS := {
+	"BLASTER": {"rate": 0.25, "speed": 1100.0, "color": Globals.C_AMBER, "size": Vector2(6, 18)},
+	"LASER": {"rate": 0.3, "speed": 1900.0, "color": Globals.C_CYAN, "size": Vector2(5, 60), "pierce": 2},
+	"BIG_LASER": {"rate": 0.35, "speed": 2100.0, "color": Globals.C_VIOLET, "size": Vector2(18, 120), "pierce": 6},
+	"MISSILE": {"rate": 0.5, "speed": 520.0, "color": Globals.C_CORAL, "size": Vector2(12, 28), "homing": 4.0, "splash": 110.0},
+}
+## Upgrade path: every G pickup moves one tier up, losing a life moves one down.
+## barrels = x offsets as a fraction of the ship half-width.
+const TIERS := [
+	{"name": "SINGLE", "weapon": "BLASTER", "barrels": [0.0]},
+	{"name": "DOUBLE", "weapon": "BLASTER", "barrels": [-0.55, 0.55]},
+	{"name": "TRIPLE", "weapon": "BLASTER", "barrels": [-0.55, 0.0, 0.55]},
+	{"name": "LASER", "weapon": "LASER", "barrels": [-0.55, 0.55]},
+	{"name": "BIG LASER", "weapon": "BIG_LASER", "barrels": [0.0]},
+	{"name": "MISSILE", "weapon": "MISSILE", "barrels": [-0.6, 0.6]},
+]
+const MAX_GUN_LEVEL := 6
 
-var gun_level: int = 0  # 0 = no gun, 1..3 = barrels
-var gun_overdrive: float = 0.0  # seconds of forced triple gun (from energy special)
+var gun_level: int = 1  # tier 1..6, you always have a gun
+var gun_overdrive: float = 0.0  # seconds of forced max tier (energy special)
 var fire_cooldown: float = 0.0
 var base_shape_size: Vector2
 var wide_time: float = 0.0
@@ -74,17 +90,17 @@ func build_ship() -> void:
 	var h := base_shape_size.y / 2.0
 	var skin: Dictionary = Globals.SKINS[Globals.skin_index]
 	for poly in Globals.make_ship(skin, w, h): sprite.add_child(poly)
+	$Sprite/ThrustParticle.modulate = skin.get("trail", Globals.C_CYAN)
 	barrels = Node2D.new()
 	sprite.add_child(barrels)
 	update_barrels()
 
+func tier() -> Dictionary:
+	return TIERS[current_gun_level() - 1]
+
 func gun_offsets() -> Array:
 	var w := base_shape_size.x / 2.0
-	match current_gun_level():
-		1: return [0.0]
-		2: return [-w * 0.55, w * 0.55]
-		3: return [-w * 0.55, 0.0, w * 0.55]
-	return []
+	return tier()["barrels"].map(func(f): return f * w)
 
 func current_gun_level() -> int:
 	return MAX_GUN_LEVEL if gun_overdrive > 0.0 else gun_level
@@ -92,15 +108,23 @@ func current_gun_level() -> int:
 func update_barrels() -> void:
 	for c in barrels.get_children(): c.queue_free()
 	var h := base_shape_size.y / 2.0
+	var w: Dictionary = WEAPONS[tier()["weapon"]]
+	var bw: float = max(4.0, w["size"].x * 0.5)
 	for x in gun_offsets():
 		var b := Polygon2D.new()
-		b.polygon = PackedVector2Array([Vector2(x - 4, -h * 0.2), Vector2(x - 4, -h - 10), Vector2(x + 4, -h - 10), Vector2(x + 4, -h * 0.2)])
-		b.color = Globals.C_AMBER
+		b.polygon = PackedVector2Array([Vector2(x - bw, -h * 0.2), Vector2(x - bw, -h - 10), Vector2(x + bw, -h - 10), Vector2(x + bw, -h * 0.2)])
+		b.color = w["color"]
 		barrels.add_child(b)
 
-func add_gun_level(amount: int) -> void:
-	gun_level = clamp(gun_level + amount, 0, MAX_GUN_LEVEL)
+## Returns the tier name after the change.
+func add_gun_level(amount: int) -> String:
+	var before := gun_level
+	gun_level = clamp(gun_level + amount, 1, MAX_GUN_LEVEL)
 	update_barrels()
+	if gun_level > before:
+		Fx.ring(get_parent(), global_position, WEAPONS[tier()["weapon"]]["color"], 160)
+		Fx.punch(barrels, 0.5)
+	return TIERS[gun_level - 1]["name"]
 
 func start_overdrive(seconds: float) -> void:
 	Audio.sfx("overdrive")
@@ -122,15 +146,26 @@ func update_weapons(delta: float) -> void:
 		gun_overdrive -= delta
 		if gun_overdrive <= 0.0: update_barrels()
 	fire_cooldown -= delta
-	if current_gun_level() == 0 or ball_attached or fire_cooldown > 0.0: return
-	fire_cooldown = FIRE_RATE
+	if ball_attached or fire_cooldown > 0.0: return
+	var w: Dictionary = WEAPONS[tier()["weapon"]]
+	fire_cooldown = w["rate"]
 	Audio.sfx("shoot", -12.0, 0.1)
 	var h := base_shape_size.y / 2.0
 	for x in gun_offsets():
+		var muzzle := sprite.to_global(Vector2(x, -h - 12))
 		var bullet := Bullet.new()
+		# missiles leave at an angle, then curve in
+		var dir := Vector2.UP.rotated(sign(x) * 0.5) if w.has("homing") else Vector2.UP
+		bullet.setup(w, dir)
 		get_parent().add_child(bullet)
-		bullet.global_position = sprite.to_global(Vector2(x, -h - 12))
-	
+		bullet.global_position = muzzle
+		Fx.flash(get_parent(), muzzle, w["color"], 12 + w["size"].x * 0.4, 0.09)
+	recoil()
+
+func recoil() -> void:
+	sprite.position.y = 5.0
+	create_tween().tween_property(sprite, "position:y", 0.0, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
 ## Touch: first finger drags the ship and taps to launch/bump, second finger = special.
 var touch_index: int = -1
 var touch_x: float = 0.0

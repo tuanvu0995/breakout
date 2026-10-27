@@ -15,9 +15,9 @@ signal collected(kind: int)
 
 static func random_kind() -> int:
 	var r := randf()
-	if r < 0.4: return KIND.GUN
-	if r < 0.7: return KIND.WIDE
-	if r < 0.85: return KIND.SLOW
+	if r < 0.5: return KIND.GUN
+	if r < 0.72: return KIND.WIDE
+	if r < 0.87: return KIND.SLOW
 	return KIND.LIFE
 
 func _ready() -> void:

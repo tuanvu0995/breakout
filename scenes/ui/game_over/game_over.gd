@@ -8,6 +8,7 @@ var new_record: bool = false
 
 func _ready() -> void:
 	Audio.wire_buttons(self)
+	Fx.juice_buttons(self)
 	$VBoxContainer/Quit.text = "MENU"
 	$Label.add_theme_font_size_override("font_size", 40)
 	$Label.text = "%s\nScore %d  -  Level %d\nBest %d" % [

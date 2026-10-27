@@ -1,0 +1,259 @@
+extends Control
+## Quest map: 6 themes x 5 levels. Cleared / next / locked are styled very differently.
+
+const Levels = preload("res://scenes/levels/levels.gd")
+const TILE := Vector2(170, 110)
+
+func _ready() -> void:
+	theme = load("res://theme/main_theme.tres")
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var bg := ColorRect.new()
+	bg.color = Globals.C_BG
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(bg)
+
+	var root := VBoxContainer.new()
+	root.add_theme_constant_override("separation", 14)
+	add_child(root)
+
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 40)
+	var back := Button.new()
+	back.text = "<  BACK"
+	back.add_theme_font_size_override("font_size", 32)
+	back.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/ui/main_menu/main_menu.tscn"))
+	head.add_child(back)
+	var title := Label.new()
+	title.text = "QUESTS   %d / %d" % [min(Globals.max_level - 1, Levels.COUNT), Levels.COUNT]
+	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_color_override("font_color", Globals.C_AMBER)
+	head.add_child(title)
+	root.add_child(head)
+
+	for t in Levels.THEMES.size():
+		var th: Dictionary = Levels.THEMES[t]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 14)
+		var name_lbl := Label.new()
+		name_lbl.text = th["name"]
+		name_lbl.custom_minimum_size = Vector2(240, TILE.y)
+		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		name_lbl.add_theme_font_size_override("font_size", 36)
+		var theme_open: bool = Globals.max_level > t * 5
+		name_lbl.add_theme_color_override("font_color", th["wall"].lightened(0.5) if theme_open else Color(Globals.C_WHITE, 0.2))
+		row.add_child(name_lbl)
+		for k in 5:
+			row.add_child(make_tile(t * 5 + k + 1, th))
+		root.add_child(row)
+
+	await get_tree().process_frame
+	root.position = (size - root.size) / 2.0
+	Audio.play_music(Audio.MENU_MUSIC)
+	Audio.wire_buttons(self)
+	Fx.juice_buttons(self)
+
+func make_tile(level: int, th: Dictionary) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = TILE
+	b.add_theme_font_size_override("font_size", 40)
+	var cleared := level < Globals.max_level
+	var current: bool = level == min(Globals.max_level, Levels.COUNT) and not cleared
+	var locked := level > Globals.max_level
+	var bg: Color
+	var fg: Color
+	if cleared:
+		bg = th["wall"]; fg = Globals.C_WHITE
+	elif current:
+		bg = Globals.C_AMBER; fg = Globals.C_DARK
+	else:
+		bg = Color(Globals.C_FIELD, 0.5); fg = Color(Globals.C_WHITE, 0.15)
+	for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = bg.lightened(0.15) if state in ["hover", "focus"] and not locked else bg
+		sb.set_corner_radius_all(16)
+		b.add_theme_stylebox_override(state, sb)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
+		b.add_theme_color_override(c, fg)
+	var sub := ""
+	if cleared:
+		var best := Globals.best_time(level)
+		sub = Globals.format_time(best) if best > 0.0 else "CLEAR"
+	elif current:
+		sub = "PLAY"
+	b.text = str(level) + ("\n" + sub if sub != "" else "")
+	if sub != "": b.add_theme_font_size_override("font_size", 30)
+	if locked:
+		b.disabled = true
+		b.text = ""
+		var center := CenterContainer.new()
+		center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var lock := TextureRect.new()
+		lock.texture = lock_tex()
+		lock.modulate = Color(Globals.C_WHITE, 0.25)
+		center.add_child(lock)
+		b.add_child(center)
+	else:
+		b.pressed.connect(select.bind(level))
+	if current:
+		b.ready.connect(func():
+			b.pivot_offset = TILE / 2.0
+			var tw := b.create_tween().set_loops()
+			tw.tween_property(b, "scale", Vector2.ONE * 1.08, 0.5).set_trans(Tween.TRANS_SINE)
+			tw.tween_property(b, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_SINE)
+			b.grab_focus())
+	return b
+
+# ---------------------------------------------------------------- quest dialog
+
+const THEME_TIPS := [
+	"Still bricks shaped into pictures. Learn the brick types.",
+	"Rings of bricks orbit a center. Time your shots.",
+	"Long bricks sway like waves. Aim ahead of them.",
+	"Bricks fade out - when faded, your ball passes through.",
+	"Spinning bricks on spiral arms that turn.",
+	"Everything at once. Good luck, pilot.",
+]
+const LeaderboardScreen = preload("res://scenes/ui/leaderboard/leaderboard_screen.gd")
+
+var dialog: Control
+var selected := 0
+
+func select(level: int) -> void:
+	selected = level
+	if dialog: dialog.queue_free()
+	var t: int = (level - 1) / 5
+	var th: Dictionary = Levels.THEMES[t]
+	var layout := Levels.build(level)
+	var moving := {"orbit": 0, "move": 0, "spin": 0, "blink": 0}
+	for item in layout:
+		var sp: Dictionary = item["spec"]
+		if sp.has("orbit_radius"): moving["orbit"] += 1
+		if sp.has("move_amp"): moving["move"] += 1
+		if sp.has("spin"): moving["spin"] += 1
+		if sp.has("blink"): moving["blink"] += 1
+	var width := int(round(Levels.half_width(level, layout) / Levels.FULL_HALF_WIDTH * 100))
+
+	# dim overlay, click outside closes
+	dialog = ColorRect.new()
+	dialog.color = Color(0, 0, 0, 0.6)
+	dialog.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dialog.gui_input.connect(func(e): if e is InputEventMouseButton and e.pressed: close_dialog())
+	add_child(dialog)
+
+	var card := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = th["field"].lightened(0.08)
+	sb.set_corner_radius_all(28)
+	sb.set_content_margin_all(40)
+	card.add_theme_stylebox_override("panel", sb)
+	card.custom_minimum_size = Vector2(820, 0)
+	dialog.add_child(card)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 16)
+	card.add_child(v)
+
+	_label(v, th["name"] + "  -  QUEST %d" % level, 52, Globals.C_AMBER)
+	_label(v, "Stage %d of 5" % ((level - 1) % 5 + 1), 28, th["wall"].lightened(0.5))
+	var tip := _label(v, THEME_TIPS[t], 28, Globals.C_WHITE)
+	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+	var stats := GridContainer.new()
+	stats.columns = 2
+	stats.add_theme_constant_override("h_separation", 40)
+	stats.add_theme_constant_override("v_separation", 8)
+	var best := Globals.best_time(level)
+	var motion := []
+	for k in ["orbit", "move", "spin", "blink"]:
+		if moving[k] > 0: motion.append("%s %d" % [{"orbit": "ORBIT", "move": "WAVE", "spin": "SPIN", "blink": "PHANTOM"}[k], moving[k]])
+	for pair in [
+		["BRICKS", str(layout.size())],
+		["MOVING", ", ".join(motion) if motion else "none"],
+		["ARENA WIDTH", "%d%%" % width],
+		["STATUS", "CLEARED" if level < Globals.max_level else "NEW"],
+		["YOUR BEST", Globals.format_time(best) if best > 0.0 else "--"],
+	]:
+		_label(stats, pair[0], 26, Color(Globals.C_WHITE, 0.55))
+		_label(stats, pair[1], 26, Globals.C_CYAN if pair[0] == "YOUR BEST" else Globals.C_WHITE)
+	v.add_child(stats)
+
+	var online_rank := _label(v, "", 26, Globals.C_AMBER)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	var play := _dialog_button(row, "PLAY", Globals.C_AMBER, Globals.C_DARK, func(): start(selected))
+	_dialog_button(row, "LEADERBOARD", Globals.C_VIOLET, Globals.C_WHITE, open_leaderboard)
+	_dialog_button(row, "CLOSE", Globals.C_FIELD, Globals.C_WHITE, close_dialog)
+	v.add_child(row)
+
+	Audio.wire_buttons(dialog)
+	Fx.juice_buttons(dialog)
+	Audio.sfx("pause", -6.0)
+	await get_tree().process_frame
+	card.position = (size - card.size) / 2.0
+	card.pivot_offset = card.size / 2.0
+	card.scale = Vector2.ONE * 0.85
+	card.create_tween().tween_property(card, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	play.grab_focus()
+
+	# your online position, if any
+	if Leaderboard.online():
+		var d := await Leaderboard.board(level, 1)
+		if selected == level and is_instance_valid(online_rank) and d.get("ok", false):
+			var me = d.get("me")
+			if me is Dictionary and me.get("rank") != null:
+				online_rank.text = "ONLINE  #%d of %d" % [int(me["rank"]), int(d["total"])]
+			else:
+				online_rank.text = "%d pilots on the board" % int(d["total"])
+
+func _dialog_button(parent: Node, text: String, bg: Color, fg: Color, cb: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.add_theme_font_size_override("font_size", 34)
+	for state in ["normal", "hover", "pressed", "focus"]:
+		var st := StyleBoxFlat.new()
+		st.bg_color = bg.lightened(0.12 if state != "normal" else 0.0)
+		st.set_corner_radius_all(16)
+		st.set_content_margin_all(16)
+		b.add_theme_stylebox_override(state, st)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(c, fg)
+	b.pressed.connect(cb)
+	parent.add_child(b)
+	return b
+
+func close_dialog() -> void:
+	if dialog:
+		dialog.queue_free()
+		dialog = null
+
+func open_leaderboard() -> void:
+	var lb := LeaderboardScreen.new()
+	lb.level = selected
+	add_child(lb)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if dialog and event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		close_dialog()
+
+func _label(parent: Node, text: String, font_size: int, color: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", font_size)
+	l.add_theme_color_override("font_color", color)
+	parent.add_child(l)
+	return l
+
+func lock_tex() -> ImageTexture:
+	return Globals.sdf_texture("lock", Vector2i(40, 44), func(p):
+		var body := Globals.sd_round_rect(p - Vector2(0, 8), Vector2(15, 11), 4)
+		var q: Vector2 = p - Vector2(0, -4)
+		var shackle: float = abs(q.length() - 10.0) - 3.0
+		if q.y > 0: shackle = 1e9
+		return min(body, shackle))
+
+func start(level: int) -> void:
+	Globals.start_level = level
+	Globals.custom_level = []
+	get_tree().change_scene_to_file("res://scenes/game/game.tscn")

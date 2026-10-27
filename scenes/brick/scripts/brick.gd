@@ -175,16 +175,27 @@ func damage(value: int) -> void:
 	
 	bounce()
 	update_type_health()
+	hit_flash()
 	
+func hit_flash() -> void:
+	size_sprite.modulate = Color(2.5, 2.5, 2.5)
+	create_tween().tween_property(size_sprite, "modulate", Color.WHITE, 0.15)
+
 func spawn_brick_explosion() -> void:
-	var instance = brick_explosion.instantiate()
-	get_tree().get_current_scene().add_child(instance)
-	instance.global_position = global_position
+	var scene := get_tree().get_current_scene()
+	var c := brick_color()
+	Fx.burst(scene, global_position, c, 18 if size == SIZE.SMALL else 28)
+	Fx.burst(scene, global_position, Globals.C_WHITE, 6, 520.0, 6.0)
+	Fx.ring(scene, global_position, c, 80)
+	Fx.flash(scene, global_position, Globals.C_WHITE, 40, 0.1)
 	
 func spawn_bomb_explosion() -> void:
-	var instance = bomb_explosion.instantiate()
-	get_tree().get_current_scene().add_child(instance)
-	instance.global_position = global_position
+	var scene := get_tree().get_current_scene()
+	Fx.flash(scene, global_position, Globals.C_WHITE, 120, 0.18)
+	Fx.ring(scene, global_position, Globals.C_RED, 220, 0.45)
+	Fx.ring(scene, global_position, Globals.C_AMBER, 140, 0.3)
+	Fx.burst(scene, global_position, Globals.C_RED, 40, 700.0, 14.0)
+	Fx.burst(scene, global_position, Globals.C_AMBER, 24, 500.0, 10.0)
 
 func update_type_health() -> void:
 	match health:

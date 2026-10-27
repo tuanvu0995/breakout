@@ -15,4 +15,6 @@ func _ready() -> void:
 	progress.add_theme_stylebox_override("fill", fill)
 
 func set_energy(new_value: int) -> void:
+	if new_value >= 100 and progress.value < 100:
+		Fx.punch(self, 0.4, 0.5)  # full: ready for special
 	progress.value = new_value
