@@ -440,8 +440,13 @@ func next_level() -> void:
 	time = 0.0
 	set_fast(false)
 	set_big(false)
-	health = min(health + 1, 3)
-	health_bar.set_health(health)
+	# Every quest starts fresh (stars like "lose no life" must be fair);
+	# only the score carries over within a run.
+	reset_health()
+	reset_energy()
+	paddle.reset_loadout()
+	combo = 0
+	hide_combo()
 	clear_drops()
 	remove_all_bricks()
 	layout_bricks()

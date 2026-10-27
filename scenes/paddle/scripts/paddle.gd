@@ -125,6 +125,16 @@ func update_barrels() -> void:
 		b.color = w["color"]
 		barrels.add_child(b)
 
+## Back to the starting kit: single gun, no overdrive, normal width.
+func reset_loadout() -> void:
+	gun_level = 1
+	gun_overdrive = 0.0
+	wide_time = 0.0
+	wide_mult = 1.0
+	$CollisionShape.shape.size = base_shape_size
+	sprite.scale.x = 1.0
+	update_barrels()
+
 ## Returns the tier name after the change.
 func add_gun_level(amount: int) -> String:
 	var before := gun_level

@@ -152,7 +152,8 @@ func _physics_process(delta: float) -> void:
 	velocity = lerp(velocity, velocity.limit_length(speed), deccel * delta)
 	
 	if attached_to:
-		global_position = attached_to.global_position
+		# a BIG ball sits higher so it doesn't overlap the ship it rests on
+		global_position = attached_to.global_position + Vector2.UP * (base_radius * scale.y * (size_mult - 1.0) + (2.0 if size_mult > 1.0 else 0.0))
 		return
 		
 	if attracted:
@@ -174,7 +175,15 @@ func _physics_process(delta: float) -> void:
 	# Update the normal with the paddle's velocity if we collide with
 	# the paddle
 	if collision.get_collider().is_in_group("Paddle"):
-		collision.get_collider().ball_bounce()
+		var ship: Node2D = collision.get_collider()
+		if global_position.y > ship.global_position.y:
+			# ended up inside / under the ship (e.g. grew while touching it): pop out
+			# on top and always head up instead of being pushed down into the water
+			global_position.y = ship.global_position.y - 30.0 - base_radius * scale.y * size_mult
+			velocity = Vector2(velocity.x, -abs(velocity.y) - 200.0)
+			_enforce_min_angle()
+			return
+		ship.ball_bounce()
 		frames_since_paddle_collison = 0
 		Globals.camera.shake(0.3, 10, 5)
 #		print("Normal:", normal)
