@@ -30,9 +30,15 @@ func _ready() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 	center.add_child(card)
+	# ponytail: scrolls when the card is taller than the screen (follow_focus keeps gamepad focus visible)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	scroll.custom_minimum_size = Vector2(ROW_W + 24, min(1000.0, get_viewport().get_visible_rect().size.y - 140.0))
+	card.add_child(scroll)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 12)
-	card.add_child(v)
+	scroll.add_child(v)
 
 	var title := _label("SETTINGS", 56, Globals.C_AMBER)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -55,17 +61,25 @@ func _ready() -> void:
 	_section(v, "PLAYER")
 	var name_row := _row(v, "NAME")
 	name_row.add_theme_constant_override("separation", 8)
-	var name_edit := LineEdit.new()
-	name_edit.max_length = 16
-	name_edit.custom_minimum_size = Vector2(300, 48)
+	var name_edit := _edit("3-16: A-Z 0-9 _", 300, false)
+	name_edit.max_length = 23  # 16 + "#n" from the server
 	name_edit.text = Leaderboard.handle
-	name_edit.placeholder_text = "3-16: A-Z 0-9 _"
-	name_edit.add_theme_font_size_override("font_size", 24)
 	name_row.add_child(name_edit)
 	var save_btn := _pill("SAVE", Globals.C_GREEN, Globals.C_DARK, func(): pass)
 	save_btn.pressed.connect(func(): _rename(name_edit, save_btn))
 	name_edit.text_submitted.connect(func(_t): _rename(name_edit, save_btn))
 	name_row.add_child(save_btn)
+
+	# optional account (email + password) in its own dialog; saving locally always works
+	var acc_row := _row(v, "ACCOUNT")
+	var acc_btn := _pill("", Globals.C_VIOLET, Globals.C_WHITE, func(): pass)
+	acc_btn.custom_minimum_size.x = 300
+	acc_row.add_child(acc_btn)
+	var paint_acc := func():
+		acc_btn.text = "SIGNED IN" if Leaderboard.email != "" else "SIGN IN / REGISTER"
+		name_edit.text = Leaderboard.handle
+	paint_acc.call()
+	acc_btn.pressed.connect(func(): _account_dialog(paint_acc, acc_btn))
 
 	_section(v, "DATA")
 	var data_row := _row(v, "PROGRESS")
@@ -96,7 +110,9 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
-		close()
+		var dlg := get_children().filter(func(c): return c is CanvasLayer)
+		if dlg.is_empty(): close()
+		else: dlg[-1].queue_free()
 
 func close() -> void:
 	Globals.save()
@@ -192,6 +208,78 @@ func _rename(edit: LineEdit, btn: Button) -> void:
 	edit.text = Leaderboard.handle  # shows the "#n" the server added for a taken name
 	Fx.popup(self, btn.global_position + Vector2(0, -24), err if err != "" else "SAVED", Globals.C_CORAL if err != "" else Globals.C_GREEN, 24)
 
+func _account_dialog(on_done: Callable, opener: Button) -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 31
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(layer)
+	var dim2 := ColorRect.new()
+	dim2.color = Color(Globals.C_DARK, 0.75)
+	dim2.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(dim2)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(center)
+	var box := PanelContainer.new()
+	box.theme = card.theme
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Globals.C_FIELD.lightened(0.06)
+	sb.set_corner_radius_all(28)
+	sb.set_content_margin_all(40)
+	box.add_theme_stylebox_override("panel", sb)
+	center.add_child(box)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 14)
+	box.add_child(v)
+	var title := _label("ACCOUNT", 44, Globals.C_AMBER)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title)
+	var note := _label("", 20, Color(Globals.C_WHITE, 0.6))
+	note.custom_minimum_size.x = 620
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.text = ("Signed in as %s. Your progress is also saved online." % Leaderboard.email) if Leaderboard.email != "" \
+		else "Optional. Your game always saves on this computer. Register to also keep progress, settings and custom levels online - sign in after a reinstall or on another computer."
+	v.add_child(note)
+	var em := _edit("email", 620, false)
+	em.text = Leaderboard.email
+	var pw := _edit("password (min 6)", 620, true)
+	v.add_child(em)
+	v.add_child(pw)
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	h.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_child(h)
+	var close_dlg := func():
+		layer.queue_free()
+		if is_instance_valid(opener): opener.grab_focus()
+	var reg := _pill("UPDATE" if Leaderboard.email != "" else "REGISTER", Globals.C_GREEN, Globals.C_DARK, func(): pass)
+	var sin := _pill("SIGN IN", Globals.C_VIOLET, Globals.C_WHITE, func(): pass)
+	var cancel := _pill("CLOSE", Color(Globals.C_WHITE, 0.12), Globals.C_WHITE, close_dlg)
+	for b in [reg, sin, cancel]:
+		b.custom_minimum_size.x = 190
+		h.add_child(b)
+	var submit := func(is_register: bool, btn: Button):
+		var err := ""
+		if not "@" in em.text: err = "ENTER YOUR EMAIL"
+		elif pw.text.length() < 6: err = "PASSWORD: MIN 6 CHARACTERS"
+		if err == "":
+			btn.disabled = true
+			if is_register: err = await Leaderboard.register(em.text.strip_edges(), pw.text)
+			else: err = await Leaderboard.login(em.text.strip_edges(), pw.text)
+			if not is_instance_valid(btn): return
+			btn.disabled = false
+		if err != "":
+			Fx.popup(layer, btn.global_position + Vector2(0, -24), err, Globals.C_CORAL, 24)
+			return
+		on_done.call()
+		Fx.popup(self, opener.global_position + Vector2(0, -24), "REGISTERED" if is_register else "WELCOME BACK " + Leaderboard.handle, Globals.C_GREEN, 24)
+		close_dlg.call()
+	reg.pressed.connect(func(): submit.call(true, reg))
+	sin.pressed.connect(func(): submit.call(false, sin))
+	Audio.wire_buttons(box)
+	Fx.juice_buttons(box)
+	em.grab_focus()
+
 func _on_reset() -> void:
 	if not reset_armed:
 		reset_armed = true
@@ -216,6 +304,15 @@ func _label(text: String, font_size: int, color: Color) -> Label:
 	l.add_theme_font_size_override("font_size", font_size)
 	l.add_theme_color_override("font_color", color)
 	return l
+
+func _edit(placeholder: String, width: float, secret: bool) -> LineEdit:
+	var e := LineEdit.new()
+	e.placeholder_text = placeholder
+	e.secret = secret
+	e.max_length = 64
+	e.custom_minimum_size = Vector2(width, 48)
+	e.add_theme_font_size_override("font_size", 24)
+	return e
 
 func _pill(text: String, bg: Color, fg: Color, cb: Callable) -> Button:
 	var b := Button.new()

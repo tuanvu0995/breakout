@@ -7,7 +7,7 @@ const Levels = preload("res://scenes/levels/levels.gd")
 const COLS := 17
 const ROWS := 9
 const CELL := 66.0                  # game-space spacing used by to_layout()
-const SAVE_PATH := "user://custom_levels.json"
+const SAVE_PATH := Globals.CUSTOM_LEVELS_PATH
 const SLOTS := 3
 const TYPE_NAMES := ["1 HIT", "2 HITS", "3 HITS", "BOMB", "ENERGY"]
 const ERASE := 5
@@ -366,6 +366,8 @@ func save_slot() -> void:
 	all[slot] = list
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify(all))
+	f.close()
+	Leaderboard.push_progress()  # cloud copy for registered players
 	dirty = false
 	refresh_hint()
 

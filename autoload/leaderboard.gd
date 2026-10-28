@@ -13,6 +13,7 @@ const TIMEOUT := 12.0
 var api_url: String = ProjectSettings.get_setting("breakout/api_url", "")
 var token := ""
 var handle := ""
+var email := ""  # set once the player registers (optional)
 var _nonce := {}  # level -> nonce for the attempt in progress
 var _queue: Array = []
 var _flushing := false
@@ -26,10 +27,13 @@ func _ready() -> void:
 	if data is Dictionary and data.get("api", "") == api_url:
 		token = data.get("token", "")
 		handle = data.get("handle", "")
+		email = data.get("email", "")
 	f = FileAccess.open(QUEUE_FILE, FileAccess.READ)
 	data = JSON.parse_string(f.get_as_text()) if f else null
 	if data is Array: _queue = data
-	if online(): flush()
+	if online():
+		flush()
+		sync_progress()
 
 # ---------------------------------------------------------------- HTTP
 
@@ -66,12 +70,13 @@ func _guest() -> bool:
 	if not r["ok"]: return false
 	token = r["json"]["token"]
 	handle = r["json"]["account"]["handle"]
+	email = ""
 	_save_auth()
 	return true
 
 func _save_auth() -> void:
 	var f := FileAccess.open(AUTH_FILE, FileAccess.WRITE)
-	f.store_string(JSON.stringify({"api": api_url, "token": token, "handle": handle}))
+	f.store_string(JSON.stringify({"api": api_url, "token": token, "handle": handle, "email": email}))
 
 # ---------------------------------------------------------------- API
 
@@ -128,6 +133,50 @@ func board(level: int, limit := 10, offset := 0, period := "all", q := "") -> Di
 	var d: Dictionary = r["json"]
 	d["ok"] = true
 	return d
+
+## Returns "" on success or an error message.
+func register(new_email: String, password: String) -> String:
+	var r := await _authed(HTTPClient.METHOD_PUT, "/me/register", {"email": new_email, "password": password})
+	if not r["ok"]: return _err(r)
+	email = r["json"]["account"]["email"]
+	_save_auth()
+	await sync_progress()
+	return ""
+
+## Signs in to an existing account (e.g. after reinstalling). Returns "" or an error.
+func login(login_email: String, password: String) -> String:
+	var r := await _request(HTTPClient.METHOD_POST, "/auth/login", {"email": login_email, "password": password}, false)
+	if not r["ok"]: return _err(r)
+	token = r["json"]["token"]
+	handle = r["json"]["account"]["handle"]
+	email = r["json"]["account"]["email"]
+	_nonce.clear()
+	_save_auth()
+	handle_changed.emit(handle)
+	await sync_progress()
+	return ""
+
+## Cloud save (registered players). Pushes are coalesced: one request per burst of saves.
+var _push_pending := false
+
+func push_progress() -> void:
+	if email == "" or token == "" or _push_pending: return
+	_push_pending = true
+	await get_tree().create_timer(2.0, true, false, true).timeout
+	_push_pending = false
+	_authed(HTTPClient.METHOD_PUT, "/me/progress", {"progress": Globals.progress_data()})
+
+## Pull the cloud copy, merge it with this device and push the result back.
+func sync_progress() -> void:
+	if email == "" or token == "": return
+	var r := await _authed(HTTPClient.METHOD_GET, "/me/progress")
+	if r["ok"] and r["json"]["progress"] is Dictionary:
+		Globals.merge_progress(r["json"]["progress"])
+	Globals.save()  # writes the merged result locally and pushes it
+
+func _err(r: Dictionary) -> String:
+	if r["json"] is Dictionary and r["json"].has("error"): return r["json"]["error"]["message"]
+	return "Offline"
 
 ## Returns "" on success or an error message.
 func set_handle(new_handle: String) -> String:

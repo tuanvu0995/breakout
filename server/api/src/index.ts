@@ -159,6 +159,74 @@ async function patchMe(req: Request, env: Env) {
   return json({ account: { id: acc.id, handle } });
 }
 
+const PASSWORD_RE = /^.{6,64}$/s;
+const PBKDF2_ITER = 100_000;  // Workers' max for PBKDF2
+
+async function pbkdf2(password: string, saltHex: string): Promise<string> {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const salt = new Uint8Array(saltHex.match(/../g)!.map((h) => parseInt(h, 16)));
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: PBKDF2_ITER }, key, 256);
+  return [...new Uint8Array(bits)].map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+async function newSession(env: Env, accountId: string): Promise<string> {
+  const token = randomHex(32);
+  const ttl = Number(env.SESSION_TTL_DAYS ?? "365") * 86_400;
+  await env.DB.prepare("INSERT INTO sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)")
+    .bind(await sha256Hex(token), accountId, nowS() + ttl).run();
+  return token;
+}
+
+const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
+
+// PUT /v1/me/register {email, password}: attach (or change) email + password on the signed-in account.
+async function register(req: Request, env: Env) {
+  const acc = (await auth(req, env))!;
+  const b = await body(req);
+  const email = str(b.email, "email", EMAIL_RE).toLowerCase();
+  const password = str(b.password, "password", PASSWORD_RE);
+  const salt = randomHex(16);
+  try {
+    await env.DB.prepare("UPDATE accounts SET email = ?, pw_hash = ? WHERE id = ?")
+      .bind(email, `pbkdf2$${salt}$${await pbkdf2(password, salt)}`, acc.id).run();
+  } catch {
+    throw new ApiError(409, "EMAIL_TAKEN", "That email is already registered.");
+  }
+  return json({ account: { id: acc.id, handle: acc.handle, email } });
+}
+
+// POST /v1/auth/login {email, password}: new session for an account that has a password.
+async function login(req: Request, env: Env) {
+  await throttle(env, `login:${ip(req)}`, 3600, 20);
+  const b = await body(req);
+  const email = str(b.email, "email", EMAIL_RE).toLowerCase();
+  const password = str(b.password, "password", PASSWORD_RE);
+  const row = await env.DB.prepare("SELECT id, handle, banned, pw_hash FROM accounts WHERE email = ?")
+    .bind(email).first<Account & { pw_hash: string | null }>();
+  const [, salt, hash] = row?.pw_hash?.split("$") ?? [];
+  if (!row || !salt || (await pbkdf2(password, salt)) !== hash)
+    throw new ApiError(401, "BAD_LOGIN", "Wrong email or password.");
+  if (row.banned) throw new ApiError(403, "BANNED", "Account banned.");
+  return json({ token: await newSession(env, row.id), account: { id: row.id, handle: row.handle, email } });
+}
+
+// GET/PUT /v1/me/progress: campaign progress (stars, unlocked levels...) as opaque JSON.
+async function getProgress(req: Request, env: Env) {
+  const acc = (await auth(req, env))!;
+  const row = await env.DB.prepare("SELECT progress FROM accounts WHERE id = ?").bind(acc.id).first<{ progress: string | null }>();
+  return json({ progress: row?.progress ? JSON.parse(row.progress) : null });
+}
+
+async function putProgress(req: Request, env: Env) {
+  const acc = (await auth(req, env))!;
+  const p = (await body(req)).progress;
+  const text = JSON.stringify(p ?? null);
+  if (typeof p !== "object" || p === null || Array.isArray(p) || text.length > 65_536)
+    throw new ApiError(400, "BAD_FIELD", "progress must be an object under 64 KB.");
+  await env.DB.prepare("UPDATE accounts SET progress = ? WHERE id = ?").bind(text, acc.id).run();
+  return json({ ok: true });
+}
+
 async function runStart(req: Request, env: Env) {
   const acc = (await auth(req, env))!;
   const level = int((await body(req)).level, "level", 1, LEVEL_COUNT);
@@ -336,8 +404,16 @@ type Route = [method: string, pattern: RegExp, fn: (req: Request, env: Env, m: R
 const ROUTES: Route[] = [
   ["GET", /^\/v1\/health$/, async () => json({ ok: true, service: "bs-api", api: "1" })],
   ["POST", /^\/v1\/auth\/guest$/, (r, e) => guest(r, e)],
-  ["GET", /^\/v1\/me$/, async (r, e) => json({ account: await auth(r, e) })],
+  ["GET", /^\/v1\/me$/, async (r, e) => {
+    const a = (await auth(r, e))!;
+    const row = await e.DB.prepare("SELECT email FROM accounts WHERE id = ?").bind(a.id).first<{ email: string | null }>();
+    return json({ account: { id: a.id, handle: a.handle, email: row?.email ?? null } });
+  }],
   ["PATCH", /^\/v1\/me$/, (r, e) => patchMe(r, e)],
+  ["PUT", /^\/v1\/me\/register$/, (r, e) => register(r, e)],
+  ["POST", /^\/v1\/auth\/login$/, (r, e) => login(r, e)],
+  ["GET", /^\/v1\/me\/progress$/, (r, e) => getProgress(r, e)],
+  ["PUT", /^\/v1\/me\/progress$/, (r, e) => putProgress(r, e)],
   ["POST", /^\/v1\/runs\/start$/, (r, e) => runStart(r, e)],
   ["POST", /^\/v1\/runs$/, (r, e) => runSubmit(r, e)],
   ["GET", /^\/v1\/boards\/(\d+)$/, (r, e, m, u) => board(r, e, m[1], u)],

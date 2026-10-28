@@ -92,6 +92,7 @@ func apply_ui_theme() -> void:
 	RenderingServer.set_default_clear_color(C_BG)
 
 const SAVE_PATH := "user://save.cfg"
+const CUSTOM_LEVELS_PATH := "user://custom_levels.json"  # written by the level editor
 var high_score: int = 0
 var start_level: int = 1
 ## Layout from the level editor; when non-empty the game plays it instead of the campaign.
@@ -339,6 +340,40 @@ func save() -> void:
 	for k in settings.keys():
 		cfg.set_value("settings", k, settings[k])
 	cfg.save(SAVE_PATH)
+	get_node("/root/Leaderboard").push_progress()  # cloud copy, registered players only
+
+## Campaign progress as plain JSON-able data (cloud save).
+func progress_data() -> Dictionary:
+	var f := FileAccess.open(CUSTOM_LEVELS_PATH, FileAccess.READ)
+	var custom = JSON.parse_string(f.get_as_text()) if f else null
+	return {"high_score": high_score, "max_level": max_level, "skin": skin_index, "stars": stars,
+		"best_times": best_times, "settings": settings, "volume": volume,
+		"custom_levels": custom if custom is Array else []}
+
+## Merge a cloud copy into this device: keep the best of both.
+func merge_progress(d: Dictionary) -> void:
+	high_score = max(high_score, int(d.get("high_score", 0)))
+	max_level = max(max_level, int(d.get("max_level", 1)))
+	if skin_index == 0: skin_index = int(d.get("skin", 0))
+	var s: Dictionary = d.get("stars", {})
+	for k in s: stars[k] = max(int(stars.get(k, 0)), int(s[k]))
+	var t: Dictionary = d.get("best_times", {})
+	for k in t: best_times[k] = min(float(best_times.get(k, INF)), float(t[k]))
+	# settings: the cloud copy is the last one this player saved on any device
+	var st: Dictionary = d.get("settings", {})
+	for k in st: if settings.has(k): settings[k] = st[k]
+	if d.has("volume"): set_volume(float(d["volume"]))
+	apply_settings()
+	# level editor slots: keep this device's slot, fill empty ones from the cloud
+	var cloud_slots = d.get("custom_levels", [])
+	if cloud_slots is Array and not cloud_slots.is_empty():
+		var f := FileAccess.open(CUSTOM_LEVELS_PATH, FileAccess.READ)
+		var mine = JSON.parse_string(f.get_as_text()) if f else null
+		if not (mine is Array and mine.size() == cloud_slots.size()): mine = cloud_slots
+		for i in mine.size():
+			if (mine[i] as Array).is_empty(): mine[i] = cloud_slots[i]
+		f = FileAccess.open(CUSTOM_LEVELS_PATH, FileAccess.WRITE)
+		f.store_string(JSON.stringify(mine))
 
 ## Returns true if it's a new record.
 func submit_score(value: int) -> bool:
