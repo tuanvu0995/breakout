@@ -28,9 +28,8 @@ var attracted: bool = false
 var attracted_to = null
 var frames_since_paddle_collison: int = 0
 var max_bump_distance: float = 40.0
-var boost_factor_base: float = 1.15
 var boost_factor: float = 1.0
-var boost_factor_perfect: float = 1.8
+var boost_factor_perfect: float = 1.35
 var boost_factor_late_early: float = 1.15
 
 ### Hitstop
@@ -149,7 +148,9 @@ func _physics_process(delta: float) -> void:
 	# $VelocityLine.rotation = velocity.angle()
 	frames_since_paddle_collison += 1
 	
-	velocity = lerp(velocity, velocity.limit_length(speed), deccel * delta)
+	# ponytail: speed always eases back to cruise (up or down), so it never drifts
+	if velocity.length() > 1.0 and not attracted:
+		velocity = velocity.normalized() * move_toward(velocity.length(), speed, speed * 1.5 * delta)
 	
 	if attached_to:
 		# a BIG ball sits higher so it doesn't overlap the ship it rests on
@@ -208,7 +209,7 @@ func _physics_process(delta: float) -> void:
 				velocity.x += collision.get_collider().velocity.x * 0.6
 				velocity = velocity.normalized()
 				velocity *= length_before_collison
-				velocity *= (boost_factor + boost_factor_base)
+
 			else:
 				## Tilt the normal near the edge
 				# Calculate the distance between the collision point and the center of the paddle
@@ -221,7 +222,7 @@ func _physics_process(delta: float) -> void:
 			# Check if below half of the thickness
 			if collision.get_position().y > collision.get_collider().global_position.y:
 #				print("BELOW HALF")
-				velocity = velocity.bounce(normal) * (boost_factor + boost_factor_base)
+				velocity = velocity.bounce(normal)
 			else:
 				# Lateral normal respecting the sign checked the collision
 				normal = Vector2(sign(normal.x), 0)
@@ -230,7 +231,9 @@ func _physics_process(delta: float) -> void:
 				
 				# Create the new velocity using the velocity length and the normal direction
 				velocity = normal_rotated * velocity.length()
-				velocity *= (boost_factor + boost_factor_base)
+
+		# leave the ship at cruise speed; a timed bump adds a small, short-lived kick
+		velocity = velocity.normalized() * speed * boost_factor
 		# Reset bump boost
 		boost_factor = 1.0
 	elif collision.get_collider().is_in_group("Bricks"):
@@ -322,7 +325,8 @@ func bump_boost(who) -> void:
 	# We had a collision recently and we're now boosting: LATE
 	if frames_since_paddle_collison > 5 and frames_since_paddle_collison < 20:
 		print("BUMP LATE")
-		boost_factor = boost_factor_late_early
+		velocity = velocity.normalized() * speed * boost_factor_late_early  # already bounced: kick now
+		boost_factor = 1.0
 		Globals.stats["bumps_late"] += 1
 		spawn_bump_timing(Globals.BUMP.LATE)
 		start_hitstop(hitstop_bump_late_early)
