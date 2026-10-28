@@ -67,8 +67,8 @@ func _ready():
 
 
 func level_ball_speed() -> float:
-	# ponytail: linear 8%/level ramp, swap for a curve if late levels feel unfair
-	return base_ball_speed * (1.0 + 0.08 * (level - 1))
+	# ponytail: gentle linear ramp, level 120 is ~1.5x level 1
+	return base_ball_speed * (1.0 + 0.004 * (level - 1))
 
 ## FAST (x2, points x2) and SLOW (x0.6) share one timed speed multiplier;
 ## picking one replaces the other.
