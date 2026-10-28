@@ -226,7 +226,7 @@ func add_gamepad_bindings() -> void:
 	var bind := func(action: String, ev: InputEvent):
 		if not InputMap.has_action(action): InputMap.add_action(action)
 		InputMap.action_set_deadzone(action, PAD_DEADZONE)
-		InputMap.action_add_event(action, ev)
+		if not InputMap.action_has_event(action, ev): InputMap.action_add_event(action, ev)
 	var button := func(b: JoyButton) -> InputEventJoypadButton:
 		var e := InputEventJoypadButton.new()
 		e.button_index = b

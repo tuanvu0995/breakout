@@ -1,7 +1,28 @@
 extends Control
 
 
+## Godot loads every autoload script before Ota mounts the OTA patch, so patched
+## autoloads would keep running the shipped code. The main menu (itself loaded
+## from the patch) swaps them for the patched scripts once per run and re-runs _ready.
+static var _autoloads_refreshed := false
+
+func _refresh_patched_autoloads() -> void:
+	if _autoloads_refreshed or Ota.applied == "": return
+	_autoloads_refreshed = true
+	for n in ["Globals", "Audio", "Leaderboard"]:
+		var node: Node = get_node_or_null("/root/" + n)
+		if node == null or node.get_script() == null: continue
+		var path: String = node.get_script().resource_path
+		var fresh: Script = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
+		# ponytail: same members = same code; a body-only change is skipped (upgrade: hash the .gdc)
+		var sig := func(s: Script): return str(s.get_script_method_list().map(func(m): return m.name)) + str(s.get_script_property_list().map(func(p): return p.name))
+		if fresh == null or sig.call(fresh) == sig.call(node.get_script()): continue
+		for c in node.get_children(): c.free()  # players / requests made by the old _ready
+		node.set_script(fresh)
+		if node.has_method("_ready"): node.call("_ready")
+
 func _ready():
+	_refresh_patched_autoloads()
 	theme = load("res://theme/main_theme.tres")
 	Fx.add_menu_backdrop(self)
 	var ver := Label.new()

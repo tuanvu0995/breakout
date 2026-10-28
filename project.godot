@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/version="0.1.0"
 config/name="Brickstellar"
-run/main_scene="res://scenes/ui/main_menu/main_menu.tscn"
+run/main_scene="res://scenes/boot/boot.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
 
