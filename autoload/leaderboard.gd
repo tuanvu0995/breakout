@@ -131,6 +131,7 @@ func board(level: int, limit := 10, offset := 0, period := "all", q := "") -> Di
 
 ## Returns "" on success or an error message.
 func set_handle(new_handle: String) -> String:
+	new_handle = new_handle.get_slice("#", 0)  # the server picks the "#n" suffix
 	var r := await _authed(HTTPClient.METHOD_PATCH, "/me", {"handle": new_handle})
 	if r["ok"]:
 		handle = r["json"]["account"]["handle"]

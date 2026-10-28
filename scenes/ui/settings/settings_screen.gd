@@ -52,6 +52,21 @@ func _ready() -> void:
 	_toggle_row(v, "SCORE POPUPS", "popups")
 	_toggle_row(v, "CONTROL HINTS", "hints")
 
+	_section(v, "PLAYER")
+	var name_row := _row(v, "NAME")
+	name_row.add_theme_constant_override("separation", 8)
+	var name_edit := LineEdit.new()
+	name_edit.max_length = 16
+	name_edit.custom_minimum_size = Vector2(300, 48)
+	name_edit.text = Leaderboard.handle
+	name_edit.placeholder_text = "3-16: A-Z 0-9 _"
+	name_edit.add_theme_font_size_override("font_size", 24)
+	name_row.add_child(name_edit)
+	var save_btn := _pill("SAVE", Globals.C_GREEN, Globals.C_DARK, func(): pass)
+	save_btn.pressed.connect(func(): _rename(name_edit, save_btn))
+	name_edit.text_submitted.connect(func(_t): _rename(name_edit, save_btn))
+	name_row.add_child(save_btn)
+
 	_section(v, "DATA")
 	var data_row := _row(v, "PROGRESS")
 	reset_btn = _pill("RESET", Color(Globals.C_RED, 0.85), Globals.C_WHITE, _on_reset)
@@ -168,6 +183,14 @@ func _choice_row(parent: Node, caption: String, options: Array, key: String) -> 
 		buttons.append(b)
 		h.add_child(b)
 	paint.call()
+
+func _rename(edit: LineEdit, btn: Button) -> void:
+	btn.disabled = true
+	var err := await Leaderboard.set_handle(edit.text.strip_edges())
+	if not is_instance_valid(edit): return
+	btn.disabled = false
+	edit.text = Leaderboard.handle  # shows the "#n" the server added for a taken name
+	Fx.popup(self, btn.global_position + Vector2(0, -24), err if err != "" else "SAVED", Globals.C_CORAL if err != "" else Globals.C_GREEN, 24)
 
 func _on_reset() -> void:
 	if not reset_armed:

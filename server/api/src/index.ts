@@ -143,7 +143,14 @@ async function guest(req: Request, env: Env) {
 
 async function patchMe(req: Request, env: Env) {
   const acc = (await auth(req, env))!;
-  const handle = str((await body(req)).handle, "handle", HANDLE_RE);
+  const base = str((await body(req)).handle, "handle", HANDLE_RE);
+  // Name taken by someone else: add the smallest free "#n" (Pilot, Pilot#2, Pilot#3...).
+  const { results } = await env.DB.prepare(
+    "SELECT handle FROM accounts WHERE (handle = ? OR handle LIKE ? ESCAPE '\\') AND id != ?",
+  ).bind(base, base.replace(/_/g, "\\_") + "#%", acc.id).all<{ handle: string }>();
+  const taken = new Set(results.map((r) => r.handle.toLowerCase()));
+  let handle = base;
+  for (let n = 2; taken.has(handle.toLowerCase()); n++) handle = `${base}#${n}`;
   try {
     await env.DB.prepare("UPDATE accounts SET handle = ? WHERE id = ?").bind(handle, acc.id).run();
   } catch {
